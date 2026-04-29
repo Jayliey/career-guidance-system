@@ -3,12 +3,19 @@ const cors = require("cors");
 const fuzzball = require("fuzzball");
 const supabase = require("./supabaseClient");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require("axios");
+const cron = require("node-cron");
 require("dotenv").config();
 
 // ========== INITIALIZE EXPRESS ==========
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ========== HEALTH CHECK (for testing) ==========
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString() });
+});
 
 // ========== INITIALIZE GEMINI AI ==========
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -132,7 +139,7 @@ function getCareerMatches(profile) {
       name: career.name,
       score,
       description: career.description,
-      requiredSkills: career.requiredSkills,   // ✅ ADD THIS LINE
+      requiredSkills: career.requiredSkills,
       matchedSkills: matched,
       missingSkills: missing,
       completion,
@@ -146,56 +153,86 @@ function getCareerMatches(profile) {
 app.post("/api/jobs", async (req, res) => {
   const { careerName } = req.body;
   if (!careerName) return res.status(400).json({ error: "Career name required" });
-  const { data, error } = await supabase
-    .from("jobs")
-    .select("*")
-    .eq("career_key", careerName.toLowerCase());
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  try {
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("career_key", careerName.toLowerCase());
+    if (error) {
+      console.error("Jobs error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(data || []);
+  } catch (err) {
+    console.error("Unexpected jobs error:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/roadmap", async (req, res) => {
   const { careerName } = req.body;
   if (!careerName) return res.status(400).json({ error: "Career name required" });
-  const { data, error } = await supabase
-    .from("learning_paths")
-    .select("*")
-    .eq("career_key", careerName.toLowerCase())
-    .order("display_order", { ascending: true });
-  if (error) return res.status(500).json({ error: error.message });
-  const roadmap = { shortTerm: [], mediumTerm: [], longTerm: [] };
-  data.forEach(item => {
-    if (item.period === "shortTerm") roadmap.shortTerm.push(item);
-    else if (item.period === "mediumTerm") roadmap.mediumTerm.push(item);
-    else if (item.period === "longTerm") roadmap.longTerm.push(item);
-  });
-  res.json(roadmap);
+  try {
+    const { data, error } = await supabase
+      .from("learning_paths")
+      .select("*")
+      .eq("career_key", careerName.toLowerCase())
+      .order("display_order", { ascending: true });
+    if (error) {
+      console.error("Roadmap error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+    const roadmap = { shortTerm: [], mediumTerm: [], longTerm: [] };
+    (data || []).forEach(item => {
+      if (item.period === "shortTerm") roadmap.shortTerm.push(item);
+      else if (item.period === "mediumTerm") roadmap.mediumTerm.push(item);
+      else if (item.period === "longTerm") roadmap.longTerm.push(item);
+    });
+    res.json(roadmap);
+  } catch (err) {
+    console.error("Unexpected roadmap error:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// ========== AI MATCH ENDPOINT (with logging and fallback) ==========
 app.post("/ai/match", (req, res) => {
   const profile = req.body;
+  console.log("📥 /ai/match received profile:", profile);
   if (!profile || !profile.skills || !profile.interest) {
+    console.error("❌ Missing fields in profile");
     return res.status(400).json({ error: "Missing profile data" });
   }
-  res.json(getCareerMatches(profile));
+  try {
+    const results = getCareerMatches(profile);
+    console.log("✅ /ai/match returning matches:", results.map(r => r.name));
+    res.json(results);
+  } catch (err) {
+    console.error("🔥 Error in getCareerMatches:", err);
+    // Fallback so dashboard doesn't stay empty
+    const fallback = careers.map(c => ({
+      name: c.name,
+      score: 50,
+      description: c.description,
+      requiredSkills: c.requiredSkills,
+      matchedSkills: [],
+      missingSkills: c.requiredSkills,
+      completion: 0,
+      reasoning: "Demo match – please check your profile data."
+    }));
+    res.json(fallback);
+  }
 });
 
 // ========== LIVE AI CHATBOT (GEMINI) ==========
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
-  if (!message) {
-    return res.status(400).json({ error: "No message provided" });
-  }
+  if (!message) return res.status(400).json({ error: "No message provided" });
   try {
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: message }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 200,
-      },
-      systemInstruction: {
-        parts: [{ text: "You are a career guidance assistant. Answer only career, job, skill, education, and professional development questions. Keep answers concise (2-3 sentences)." }]
-      }
+      generationConfig: { temperature: 0.7, maxOutputTokens: 200 },
+      systemInstruction: { parts: [{ text: "You are a career guidance assistant. Answer only career, job, skill, education, and professional development questions. Keep answers concise (2-3 sentences)." }] }
     });
     const reply = result.response.text();
     res.json({ reply });
@@ -290,10 +327,96 @@ app.delete("/api/admin/learning-paths/:id", requireAdmin, async (req, res) => {
   res.status(204).send();
 });
 
+// ========== AUTO JOB SCRAPING (Adzuna) ==========
+const categoryMap = {
+  'it-jobs': 'software engineer',
+  'data-science-jobs': 'data analyst',
+  'security-jobs': 'cybersecurity analyst',
+  'business-jobs': 'business analyst',
+  'design-jobs': 'ui/ux designer'
+};
+
+function extractSkills(description) {
+  const skillKeywords = [
+    'javascript', 'react', 'node', 'python', 'sql', 'excel', 'statistics',
+    'linux', 'security', 'communication', 'analysis', 'design', 'java', 'c++',
+    'aws', 'docker', 'git', 'agile'
+  ];
+  if (!description) return [];
+  const lower = description.toLowerCase();
+  return skillKeywords.filter(skill => lower.includes(skill));
+}
+
+async function scrapeJobs() {
+  console.log('🔄 Adzuna job scrape started...');
+  let added = 0, errors = 0;
+  for (const [adzunaCategory, careerKey] of Object.entries(categoryMap)) {
+    try {
+      const url = `https://api.adzuna.com/v1/api/jobs/us/search/1`;
+      const params = {
+        app_id: process.env.ADZUNA_APP_ID,
+        app_key: process.env.ADZUNA_API_KEY,
+        results_per_page: 20,
+        category: adzunaCategory,
+        content_type: 'application/json'
+      };
+      const response = await axios.get(url, { params });
+      const jobs = response.data.results;
+      if (!jobs || jobs.length === 0) continue;
+      for (const job of jobs) {
+        const jobData = {
+          title: job.title,
+          company: job.company?.display_name || 'Unknown',
+          location: job.location?.display_name || 'Remote',
+          salary: job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : 'Not specified',
+          career_key: careerKey,
+          required_skills: extractSkills(job.description),
+          description: job.description || '',
+          apply_url: job.redirect_url,
+          created_at: new Date(),
+          updated_at: new Date()
+        };
+        const { error } = await supabase
+          .from('jobs')
+          .upsert(jobData, { onConflict: 'title, company' });
+        if (error) {
+          console.error(`Error saving job ${job.title}:`, error.message);
+          errors++;
+        } else {
+          added++;
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (err) {
+      console.error(`Failed to scrape category ${adzunaCategory}:`, err.message);
+      errors++;
+    }
+  }
+  console.log(`✅ Scrape finished. Added/Updated: ${added}, Errors: ${errors}`);
+  return { added, errors };
+}
+
+// Schedule daily scrape at 2 AM
+cron.schedule('0 2 * * *', () => {
+  console.log('⏰ Running scheduled job scrape...');
+  scrapeJobs().catch(err => console.error('Scheduled scrape failed:', err));
+});
+
+// Admin endpoint to manually trigger scrape
+app.post('/api/admin/scrape-jobs', requireAdmin, async (req, res) => {
+  try {
+    const result = await scrapeJobs();
+    res.json({ message: 'Scrape completed', result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========== START SERVER ==========
 app.listen(5000, () => {
   console.log("AI Server running on port 5000");
   console.log("Careers available:", careers.map(c => c.name).join(", "));
   console.log("Fuzzy matching enabled");
   console.log("Gemini AI chatbot active on /api/chat");
+  console.log("Job scraper active (daily at 2 AM)");
 });

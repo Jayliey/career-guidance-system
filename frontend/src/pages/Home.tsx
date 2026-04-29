@@ -52,12 +52,21 @@ function Home() {
     navigate("/demo-dashboard");
   };
 
+  // Steps data for the "How it works" section
+  const steps = [
+    { title: "Create Profile", description: "Sign up and complete your profile with your skills, interests, and experience level." },
+    { title: "AI Analysis", description: "Our AI analyzes your skills and interests using intelligent matching algorithms." },
+    { title: "Get Matches", description: "Receive personalized career recommendations with match percentages and AI reasoning." },
+    { title: "Identify Gaps", description: "See exactly which skills you're missing for your dream career." },
+    { title: "Follow Roadmap", description: "Get a structured learning path with courses and resources to close skill gaps." }
+  ];
+
   return (
     <div className="app">
       <ParticlesBackground />
       <div className="overlay">
         <nav className="navbar">
-          <div className="logo">CareerAI</div>
+          <div className="logo">Career Guidance</div>
           <div className="nav-links">
             <a href="#features">Features</a>
             <a href="#how">How It Works</a>
@@ -77,7 +86,7 @@ function Home() {
         </nav>
 
         <section className="hero">
-          <h1>Your Career Path, Predicted by AI</h1>
+          <h1>Find Your Career Path with Confidence</h1>
           <p>We analyze your skills, personality, and interests to guide your future career.</p>
           <div className="cta">
             <button className="primary" onClick={goToOnboarding}>Start AI Assessment</button>
@@ -87,10 +96,10 @@ function Home() {
         </section>
 
         <section className="features" id="features">
-          <h2>Why Use CareerAI?</h2>
+          <h2>Why Use Career Guidance?</h2>
           <div className="feature-grid">
             <div className="card">
-              <h3>AI Career Matching</h3>
+              <h3>Career Matching</h3>
               <p>Get top 5 career recommendations based on your skills, interests, and profile.</p>
             </div>
             <div className="card">
@@ -108,40 +117,22 @@ function Home() {
           </div>
         </section>
 
-        {/* HOW IT WORKS SECTION */}
-        <section className="how-it-works" id="how">
-          <h2>How CareerAI Works</h2>
-          <div className="steps-grid">
-            <div className="step">
-              <div className="step-number">1</div>
-              <h3>Create Profile</h3>
-              <p>Sign up and complete your profile with your skills, interests, and experience level.</p>
-            </div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <h3>AI Analysis</h3>
-              <p>Our AI analyzes your skills and interests using intelligent matching algorithms.</p>
-            </div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <h3>Get Matches</h3>
-              <p>Receive personalized career recommendations with match percentages and AI reasoning.</p>
-            </div>
-            <div className="step">
-              <div className="step-number">4</div>
-              <h3>Identify Gaps</h3>
-              <p>See exactly which skills you're missing for your dream career.</p>
-            </div>
-            <div className="step">
-              <div className="step-number">5</div>
-              <h3>Follow Roadmap</h3>
-              <p>Get a structured learning path with courses and resources to close skill gaps.</p>
-            </div>
+        {/* HOW IT WORKS SECTION – now uses same card style as features */}
+        <section className="features" id="how">
+          <h2>How Career Guidance Works</h2>
+          <div className="feature-grid">
+            {steps.map((step, index) => (
+              <div key={index} className="card">
+                <div className="step-number">{index + 1}</div>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </div>
+            ))}
           </div>
         </section>
 
         <section className="preview" id="demo">
-          <h2>Live AI Career Simulation</h2>
+          <h2>Live Career Simulation</h2>
           <div className="preview-card">
             <p>Click "Try Demo Mode" above to see the full AI career matching system in action!</p>
             <div className="demo-skills">

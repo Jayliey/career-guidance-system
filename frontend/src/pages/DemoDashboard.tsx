@@ -36,15 +36,12 @@ function DemoDashboard() {
       try {
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             interest: demoProfile.interest,
             skills: demoProfile.skills
           }),
         });
-
         const result = await res.json();
         setMatches(result);
       } catch (err) {
@@ -57,32 +54,25 @@ function DemoDashboard() {
     loadDemoProfile();
   }, [navigate]);
 
-  if (loading) {
-    return <div className="loading">Loading demo dashboard...</div>;
-  }
-
-  if (!data) {
-    return <div className="loading">Demo profile not found</div>;
-  }
+  if (loading) return <div className="loading">Loading demo dashboard...</div>;
+  if (!data) return <div className="loading">Demo profile not found</div>;
 
   const topMatch = matches[0];
   const readinessScore = topMatch?.score || 0;
 
   return (
-    <div className="dashboard">
-      {/* DEMO MODE BANNER */}
-      <div className="demo-banner">
-        <span>🎮 DEMO MODE | Using sample profile data</span>
-        <button onClick={exitDemoMode}>Exit Demo</button>
-      </div>
+    <div className="dashboard" style={{ position: "relative" }}>
+      {/* Exit Demo button - top‑right corner */}
+      <button onClick={exitDemoMode} className="exit-demo-btn">
+         Exit Demo
+      </button>
 
-      <h1>AI Career Dashboard <span className="demo-tag">(Demo)</span></h1>
+      <h1>Career Dashboard <span className="demo-tag">(Demo)</span></h1>
 
       {/* PROFILE SECTION */}
       <div className="section">
         <h2>Demo Profile</h2>
         <p><strong>Interest Area:</strong> {data.interest}</p>
-
         <h3>Your Skills</h3>
         <div className="tags">
           {data.skills?.map((s: any, i: number) => (
@@ -94,9 +84,9 @@ function DemoDashboard() {
         </div>
       </div>
 
-      {/* AI READINESS SCORE */}
+      {/* CAREER READINESS SCORE */}
       <div className="section">
-        <h2>AI Career Readiness Score</h2>
+        <h2>Career Readiness Score</h2>
         <div className="bar">
           <div className="fill" style={{ width: `${readinessScore}%` }} />
         </div>
@@ -128,16 +118,13 @@ function DemoDashboard() {
               </span>
             </div>
             <p>{c.description}</p>
-            
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${c.completion}%` }} />
             </div>
             <small>Skills completion: {c.completion}%</small>
-            
             <div className="reasoning">
-              <strong>🧠 AI Reasoning:</strong> {c.reasoning}
+              <strong>🧠 Reasoning:</strong> {c.reasoning}
             </div>
-            
             <div className="skill-badges">
               {c.matchedSkills?.map((skill: string, idx: number) => (
                 <span key={idx} className="matched-skill">✓ {skill}</span>
@@ -152,7 +139,7 @@ function DemoDashboard() {
 
       {/* DEMO FOOTER */}
       <div className="demo-footer">
-        <p>🎮 <strong>You're in Demo Mode</strong> — using a sample profile with pre-loaded skills.</p>
+        <p>🎮 <strong>You're in Demo Mode</strong> — using a sample profile with pre‑loaded skills.</p>
         <p>Create a free account to get personalized results based on your actual skills!</p>
       </div>
     </div>

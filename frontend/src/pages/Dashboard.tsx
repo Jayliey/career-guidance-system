@@ -14,7 +14,7 @@ function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(false); // ✅ NEW: AI loading state
+  const [aiLoading, setAiLoading] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [selectedCareer, setSelectedCareer] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -86,15 +86,16 @@ function Dashboard() {
             name: s.skill_name,
             proficiency: s.proficiency
           }));
-        } else if (profile.skills && typeof profile.skills[0] === 'string') {
-          profile.skills = profile.skills.map((s: string) => ({
-            name: s,
-            proficiency: 3
-          }));
+        } else if (profile.skills && typeof profile.skills === 'string') {
+          const skillNames = profile.skills.split(',').map((s: string) => s.trim());
+          profile.skills = skillNames.map((name: string) => ({ name, proficiency: 3 }));
+        } else if (Array.isArray(profile.skills) && profile.skills.length > 0) {
+          profile.skills = profile.skills.map((s: string) => ({ name: s, proficiency: 3 }));
+        } else {
+          profile.skills = [];
         }
         setData(profile);
 
-        // ✅ Start AI loading
         setAiLoading(true);
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
@@ -120,24 +121,16 @@ function Dashboard() {
   if (loading) return <div className="loading">Loading dashboard...</div>;
   if (!data) return <div className="loading">No profile data found</div>;
 
-  const topMatch = matches[0];
-  const readinessScore = topMatch?.score || 0;
-
-  // Helper to compute matched/missing skills from required list and user's actual skills
-  const getUserSkillNames = () => data.skills.map((s: any) => s.name.toLowerCase());
+  const getUserSkillNames = () => data.skills.map((s: any) => s.name.toLowerCase().trim());
   const computeMatchedSkills = (required: string[]) => {
     const userSkills = getUserSkillNames();
-    return required.filter(skill => userSkills.includes(skill.toLowerCase()));
-  };
-  const computeMissingSkills = (required: string[]) => {
-    const userSkills = getUserSkillNames();
-    return required.filter(skill => !userSkills.includes(skill.toLowerCase()));
+    return required.filter(skill => userSkills.includes(skill.toLowerCase().trim()));
   };
 
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h1>AI Career Dashboard</h1>
+        <h1>Career Dashboard</h1>
         <div className="header-buttons">
           <button onClick={() => setShowEditModal(true)} className="edit-btn">
             ✏️ Edit Profile
@@ -149,7 +142,8 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="section">
+      {/* Profile Section */}
+      <div className="profile-section">
         <h2>Your Profile</h2>
         <p><strong>Interest Area:</strong> {data.interest}</p>
         <h3>Your Skills</h3>
@@ -163,36 +157,16 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="section">
-        <h2>AI Career Readiness Score</h2>
-        <div className="bar">
-          <div className="fill" style={{ width: `${readinessScore}%` }} />
-        </div>
-        <p className="score-text">{readinessScore}% match with your top career</p>
-      </div>
-
-      {topMatch?.missingSkills?.length > 0 && (
-        <div className="section">
-          <h2>📊 Skill Gap Analysis</h2>
-          <p>To become a <strong>{topMatch.name}</strong>, you need to improve:</p>
-          <div className="tags">
-            {topMatch.missingSkills.map((skill: string, i: number) => (
-              <span key={i} className="missing-skill">{skill}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="section">
+      {/* Career Matches Section */}
+      <div className="matches-section">
         <h2>🎯 Top Career Matches</h2>
         {aiLoading ? (
           <div className="loading">AI is analyzing your skills...</div>
+        ) : matches.length === 0 ? (
+          <div className="loading">No career matches found. Please update your profile.</div>
         ) : (
           matches.slice(0, 5).map((c: any, i: number) => {
-            // Use frontend calculation for matched & missing (as a fallback)
-            const computedMatched = computeMatchedSkills(c.requiredSkills || []);
-            const computedMissing = computeMissingSkills(c.requiredSkills || []);
-
+            const matchedSkillNames = computeMatchedSkills(c.requiredSkills || []);
             return (
               <div key={i} className={`match-card ${i === 0 ? "top-match" : ""}`}>
                 <div className="match-header">
@@ -207,48 +181,21 @@ function Dashboard() {
                 </div>
                 <small>Skills completion: {c.completion}%</small>
                 <div className="reasoning">
-                  <strong>🧠 AI Reasoning:</strong> {c.reasoning}
+                  <strong>🧠 Reasoning:</strong> {c.reasoning}
                 </div>
-
-                {/* Required Skills */}
-                <div className="skill-section">
-                  <div className="skill-section-title">📋 Required Skills</div>
-                  <div className="skill-badges">
-                    {c.requiredSkills?.map((skill: string, idx: number) => (
-                      <span key={idx} className="required-skill">{skill}</span>
-                    ))}
-                  </div>
+                <div className="skill-badges" style={{ marginTop: "12px" }}>
+                  {c.requiredSkills?.map((skill: string, idx: number) => {
+                    const isMatched = matchedSkillNames.includes(skill.toLowerCase().trim());
+                    return (
+                      <span
+                        key={idx}
+                        className={isMatched ? "matched-skill" : "missing-skill-badge"}
+                      >
+                        {isMatched ? `✓ ${skill}` : `✗ ${skill}`}
+                      </span>
+                    );
+                  })}
                 </div>
-
-                {/* Matched Skills (frontend computed) */}
-                <div className="skill-section">
-                  <div className="skill-section-title">✅ Matched Skills</div>
-                  <div className="skill-badges">
-                    {computedMatched.length > 0 ? (
-                      computedMatched.map((skill: string, idx: number) => (
-                        <span key={idx} className="matched-skill">✓ {skill}</span>
-                      ))
-                    ) : (
-                      <span className="no-skills">None</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Missing Skills (frontend computed) */}
-                <div className="skill-section">
-                  <div className="skill-section-title">❌ Missing Skills</div>
-                  <div className="skill-badges">
-                    {computedMissing.length > 0 ? (
-                      computedMissing.map((skill: string, idx: number) => (
-                        <span key={idx} className="missing-skill-badge">✗ {skill}</span>
-                      ))
-                    ) : (
-                      <span className="no-skills">None – Perfect match!</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Buttons */}
                 <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
                   <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>
                     🗺️ View Learning Path

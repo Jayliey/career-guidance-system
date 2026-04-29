@@ -73,7 +73,7 @@ function CareerRoadmap({ careerName, onClose }: { careerName: string; onClose: (
   ];
 
   return (
-    <div className="roadmap-modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
+    <div className="roadmap-modal-overlay" onClick={onClose}>
       <div className="roadmap-modal" onClick={(e) => e.stopPropagation()}>
         <div className="roadmap-header">
           <h2>📚 Learning Roadmap for {careerName}</h2>
@@ -83,10 +83,8 @@ function CareerRoadmap({ careerName, onClose }: { careerName: string; onClose: (
         {loading && <div className="roadmap-loading">Loading roadmap...</div>}
         {error && (
           <div className="roadmap-error">
-            <p>⚠️ {error}</p>
-            <p style={{ fontSize: "14px", marginTop: "10px", opacity: 0.7 }}>
-              Check back soon for learning resources!
-            </p>
+            <p className="roadmap-error-message">⚠️ {error}</p>
+            <p className="roadmap-error-hint">Check back soon for learning resources!</p>
           </div>
         )}
         {!loading && !error && roadmap && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../context/AuthContext"; // 👈 import useAuth
 
 interface Job {
   id: number;
@@ -14,10 +15,12 @@ interface Job {
 }
 
 function AdminJobs() {
+  const { user } = useAuth(); // 👈 get current user (for admin id)
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Job | null>(null);
   const [form, setForm] = useState<Partial<Job>>({});
+  const [scraping, setScraping] = useState(false); // 👈 loading state for scrape button
 
   const fetchJobs = async () => {
     const { data, error } = await supabase
@@ -34,27 +37,57 @@ function AdminJobs() {
     setLoading(false);
   };
 
-  const handleSave = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return;
-
-  const payload = {
-    ...form,
-    required_skills: Array.isArray(form.required_skills)
-      ? form.required_skills
-      : [],
+  // 👇 New function to trigger job scraping
+  const triggerScrape = async () => {
+    if (!user) {
+      alert("You must be logged in as admin to scrape jobs.");
+      return;
+    }
+    setScraping(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/admin/scrape-jobs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id, // 👈 required by requireAdmin middleware
+        },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(`Scrape completed! Added/Updated: ${data.result?.added || 0}, Errors: ${data.result?.errors || 0}`);
+        fetchJobs(); // refresh job list after successful scrape
+      } else {
+        alert(`Scrape failed: ${data.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Scrape error:", error);
+      alert("Scrape failed. Check console for details.");
+    } finally {
+      setScraping(false);
+    }
   };
 
-  if (editing) {
-    await supabase.from("jobs").update(payload).eq("id", editing.id);
-  } else {
-    await supabase.from("jobs").insert([payload]);
-  }
+  const handleSave = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
 
-  fetchJobs();
-  setEditing(null);
-  setForm({});
-};
+    const payload = {
+      ...form,
+      required_skills: Array.isArray(form.required_skills)
+        ? form.required_skills
+        : [],
+    };
+
+    if (editing) {
+      await supabase.from("jobs").update(payload).eq("id", editing.id);
+    } else {
+      await supabase.from("jobs").insert([payload]);
+    }
+
+    fetchJobs();
+    setEditing(null);
+    setForm({});
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this job?")) return;
@@ -77,7 +110,24 @@ function AdminJobs() {
 
   return (
     <div className="admin-container">
-      <h1>Manage Jobs</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h1>Manage Jobs</h1>
+        <button
+          onClick={triggerScrape}
+          disabled={scraping}
+          className="scrape-btn"
+          style={{
+            background: "#4CAF50",
+            color: "white",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: "8px",
+            cursor: "pointer",
+          }}
+        >
+          {scraping ? "Scraping..." : "🔄 Scrape Jobs Now"}
+        </button>
+      </div>
 
       <button
         onClick={() => {
@@ -89,7 +139,6 @@ function AdminJobs() {
         + Add Job
       </button>
 
-      {/* FIXED CONDITION */}
       {editing !== null && (
         <div className="admin-form">
           <h3>{editing ? "Edit Job" : "New Job"}</h3>

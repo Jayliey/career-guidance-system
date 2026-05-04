@@ -13,7 +13,13 @@ interface RoadmapData {
   longTerm: RoadmapItem[];
 }
 
-function CareerRoadmap({ careerName, onClose }: { careerName: string; onClose: () => void }) {
+interface CareerRoadmapProps {
+  careerName: string;
+  onClose: () => void;
+  userSkills?: { name: string; proficiency: number }[]; // optional, for personalisation
+}
+
+function CareerRoadmap({ careerName, onClose, userSkills }: CareerRoadmapProps) {
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +34,10 @@ function CareerRoadmap({ careerName, onClose }: { careerName: string; onClose: (
         const res = await fetch("http://localhost:5000/api/roadmap", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ careerName }),
+          body: JSON.stringify({
+            careerName,
+            userSkills: userSkills || [], // send user skills for personalisation
+          }),
         });
         const data = await res.json();
         console.log("Roadmap response:", data);
@@ -47,7 +56,7 @@ function CareerRoadmap({ careerName, onClose }: { careerName: string; onClose: (
       }
     };
     fetchRoadmap();
-  }, [careerName]);
+  }, [careerName, userSkills]);
 
   const renderRoadmapItems = (items: RoadmapItem[] = []) => (
     <div className="roadmap-items">

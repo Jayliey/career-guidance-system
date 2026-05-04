@@ -7,60 +7,39 @@ const axios = require("axios");
 const cron = require("node-cron");
 require("dotenv").config();
 
-// ========== INITIALIZE EXPRESS ==========
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ========== HEALTH CHECK (for testing) ==========
+// ========== HEALTH CHECK ==========
 app.get("/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-// ========== INITIALIZE GEMINI AI ==========
+// ========== GEMINI AI ==========
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-// ========== CAREER DATABASE ==========
-const careers = [
-  {
-    name: "Data Analyst",
-    requiredSkills: ["excel", "sql", "python", "statistics"],
-    interest: "technology",
-    description: "Works with data to find insights and patterns."
-  },
-  {
-    name: "Software Engineer",
-    requiredSkills: ["javascript", "react", "node", "problem solving"],
-    interest: "technology",
-    description: "Builds software systems and applications."
-  },
-  {
-    name: "Cybersecurity Analyst",
-    requiredSkills: ["networking", "security", "linux", "problem solving"],
-    interest: "technology",
-    description: "Protects systems from cyber threats."
-  },
-  {
-    name: "Business Analyst",
-    requiredSkills: ["communication", "excel", "analysis", "business"],
-    interest: "business",
-    description: "Analyzes business needs and improves processes."
-  },
-  {
-    name: "UI/UX Designer",
-    requiredSkills: ["design", "creativity", "figma", "user research"],
-    interest: "technology",
-    description: "Designs user-friendly digital experiences."
+// ========== FETCH CAREERS FROM DB (WITH WEIGHTS) ==========
+async function fetchCareersFromDB() {
+  const { data: careers, error } = await supabase.from("careers").select("*");
+  if (error) throw error;
+  for (let career of careers) {
+    const { data: skills, error: skillError } = await supabase
+      .from("career_skills")
+      .select("skill_name, weight")
+      .eq("career_id", career.id);
+    if (skillError) throw skillError;
+    career.requiredSkills = skills.map(s => s.skill_name);
+    career.skillWeights = {};
+    skills.forEach(s => { career.skillWeights[s.skill_name] = s.weight || 3; });
   }
-];
-
-// Helper: normalize text
-function normalize(text) {
-  return text.toLowerCase().trim();
+  return careers;
 }
 
-// ========== FUZZY SKILL MATCHING ==========
+function normalize(text) { return text.toLowerCase().trim(); }
+
+// ========== FUZZY MATCHING ==========
 function isSkillMatch(userSkill, requiredSkill) {
   const normalizedUser = normalize(userSkill);
   const normalizedRequired = normalize(requiredSkill);
@@ -70,8 +49,7 @@ function isSkillMatch(userSkill, requiredSkill) {
 }
 
 function findMatchingSkills(userSkills, requiredSkills) {
-  const matched = [];
-  const missing = [];
+  const matched = [], missing = [];
   requiredSkills.forEach(required => {
     let found = false;
     for (const userSkill of userSkills) {
@@ -85,11 +63,10 @@ function findMatchingSkills(userSkills, requiredSkills) {
   return { matched, missing };
 }
 
-// ========== AI MATCHING ENGINE ==========
-function getCareerMatches(profile) {
-  let userSkillsList = [];
-  let userSkillsMap = new Map();
-  if (profile.skills.length > 0 && typeof profile.skills[0] === 'object') {
+// ========== WEIGHTED AI MATCHING ENGINE (ALSO RETURNS CAREER ID) ==========
+function getCareerMatches(profile, careers) {
+  let userSkillsList = [], userSkillsMap = new Map();
+  if (profile.skills.length && typeof profile.skills[0] === 'object') {
     profile.skills.forEach(skill => {
       const skillName = normalize(skill.name);
       userSkillsList.push(skillName);
@@ -106,35 +83,25 @@ function getCareerMatches(profile) {
   const results = careers.map(career => {
     const required = career.requiredSkills.map(normalize);
     const { matched, missing } = findMatchingSkills(userSkillsList, required);
-    let totalWeight = 0, earnedWeight = 0;
-    required.forEach(requiredSkill => {
-      totalWeight += 1;
-      let matchedSkillName = null;
-      for (const userSkill of userSkillsList) {
-        if (isSkillMatch(userSkill, requiredSkill)) {
-          matchedSkillName = userSkill;
-          break;
-        }
-      }
-      if (matchedSkillName) {
-        const proficiency = userSkillsMap.get(matchedSkillName) || 3;
-        earnedWeight += proficiency / 5;
+    const weights = career.skillWeights || {};
+    let totalWeighted = 0, earnedWeighted = 0;
+    required.forEach(reqSkill => {
+      const weight = weights[reqSkill] || 3;
+      totalWeighted += weight;
+      if (userSkillsMap.has(reqSkill)) {
+        const proficiency = userSkillsMap.get(reqSkill) || 3;
+        earnedWeighted += weight * (proficiency / 5);
       }
     });
-    const skillScore = totalWeight > 0 ? (earnedWeight / totalWeight) * 70 : 0;
+    const skillScore = totalWeighted > 0 ? (earnedWeighted / totalWeighted) * 70 : 0;
     const interestScore = normalize(career.interest) === userInterest ? 30 : 10;
     const score = Math.round(skillScore + interestScore);
-    const completion = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
+    const completion = totalWeighted > 0 ? Math.round((earnedWeighted / totalWeighted) * 100) : 0;
     let reasoning = "";
-    if (completion >= 80) {
-      reasoning = `Excellent match! You have strong proficiency in ${matched.length}/${required.length} required skills.`;
-    } else if (completion >= 50) {
-      reasoning = `Good match — you have ${matched.length}/${required.length} key skills. Improve proficiency for better matches.`;
-    } else if (completion > 0) {
-      reasoning = `Potential match — you have ${matched.length}/${required.length} skills. Focus on: ${missing.join(", ")}.`;
-    } else {
-      reasoning = `Low match — consider learning: ${missing.join(", ")}.`;
-    }
+    if (completion >= 80) reasoning = `Excellent match! You have strong proficiency in ${matched.length}/${required.length} required skills.`;
+    else if (completion >= 50) reasoning = `Good match — you have ${matched.length}/${required.length} key skills. Improve proficiency for better matches.`;
+    else if (completion > 0) reasoning = `Potential match — you have ${matched.length}/${required.length} skills. Focus on: ${missing.join(", ")}.`;
+    else reasoning = `Low match — consider learning: ${missing.join(", ")}.`;
     return {
       name: career.name,
       score,
@@ -143,7 +110,8 @@ function getCareerMatches(profile) {
       matchedSkills: matched,
       missingSkills: missing,
       completion,
-      reasoning
+      reasoning,
+      id: career.id   // ✅ included for adaptability endpoint
     };
   });
   return results.sort((a, b) => b.score - a.score);
@@ -154,23 +122,15 @@ app.post("/api/jobs", async (req, res) => {
   const { careerName } = req.body;
   if (!careerName) return res.status(400).json({ error: "Career name required" });
   try {
-    const { data, error } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("career_key", careerName.toLowerCase());
-    if (error) {
-      console.error("Jobs error:", error);
-      return res.status(500).json({ error: error.message });
-    }
+    const { data, error } = await supabase.from("jobs").select("*").eq("career_key", careerName.toLowerCase());
+    if (error) throw error;
     res.json(data || []);
-  } catch (err) {
-    console.error("Unexpected jobs error:", err);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Personalised roadmap (reorders based on user's existing proficiency)
 app.post("/api/roadmap", async (req, res) => {
-  const { careerName } = req.body;
+  const { careerName, userSkills } = req.body;
   if (!careerName) return res.status(400).json({ error: "Career name required" });
   try {
     const { data, error } = await supabase
@@ -178,53 +138,42 @@ app.post("/api/roadmap", async (req, res) => {
       .select("*")
       .eq("career_key", careerName.toLowerCase())
       .order("display_order", { ascending: true });
-    if (error) {
-      console.error("Roadmap error:", error);
-      return res.status(500).json({ error: error.message });
-    }
+    if (error) throw error;
     const roadmap = { shortTerm: [], mediumTerm: [], longTerm: [] };
     (data || []).forEach(item => {
       if (item.period === "shortTerm") roadmap.shortTerm.push(item);
       else if (item.period === "mediumTerm") roadmap.mediumTerm.push(item);
       else if (item.period === "longTerm") roadmap.longTerm.push(item);
     });
+    // Personalisation: reorder based on user's proficiency (higher first)
+    if (userSkills && Array.isArray(userSkills)) {
+      const userSkillMap = new Map();
+      userSkills.forEach(s => userSkillMap.set(s.name.toLowerCase(), s.proficiency || 3));
+      const sortByProximity = (items) => {
+        return items.sort((a, b) => {
+          const profA = userSkillMap.get(a.skill?.toLowerCase()) || 0;
+          const profB = userSkillMap.get(b.skill?.toLowerCase()) || 0;
+          return profB - profA;
+        });
+      };
+      roadmap.shortTerm = sortByProximity(roadmap.shortTerm);
+      roadmap.mediumTerm = sortByProximity(roadmap.mediumTerm);
+      roadmap.longTerm = sortByProximity(roadmap.longTerm);
+    }
     res.json(roadmap);
-  } catch (err) {
-    console.error("Unexpected roadmap error:", err);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ========== AI MATCH ENDPOINT (with logging and fallback) ==========
-app.post("/ai/match", (req, res) => {
+app.post("/ai/match", async (req, res) => {
   const profile = req.body;
-  console.log("📥 /ai/match received profile:", profile);
-  if (!profile || !profile.skills || !profile.interest) {
-    console.error("❌ Missing fields in profile");
-    return res.status(400).json({ error: "Missing profile data" });
-  }
+  if (!profile || !profile.skills || !profile.interest) return res.status(400).json({ error: "Missing profile data" });
   try {
-    const results = getCareerMatches(profile);
-    console.log("✅ /ai/match returning matches:", results.map(r => r.name));
+    const careers = await fetchCareersFromDB();
+    const results = getCareerMatches(profile, careers);
     res.json(results);
-  } catch (err) {
-    console.error("🔥 Error in getCareerMatches:", err);
-    // Fallback so dashboard doesn't stay empty
-    const fallback = careers.map(c => ({
-      name: c.name,
-      score: 50,
-      description: c.description,
-      requiredSkills: c.requiredSkills,
-      matchedSkills: [],
-      missingSkills: c.requiredSkills,
-      completion: 0,
-      reasoning: "Demo match – please check your profile data."
-    }));
-    res.json(fallback);
-  }
+  } catch (err) { res.json([]); }
 });
 
-// ========== LIVE AI CHATBOT (GEMINI) ==========
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: "No message provided" });
@@ -236,10 +185,31 @@ app.post("/api/chat", async (req, res) => {
     });
     const reply = result.response.text();
     res.json({ reply });
-  } catch (error) {
-    console.error("Gemini API error:", error);
-    res.status(500).json({ error: "AI service unavailable" });
-  }
+  } catch (error) { res.status(500).json({ error: "AI service unavailable" }); }
+});
+
+// ========== CAREER ADAPTABILITY SCORE ==========
+app.post("/api/adaptability", async (req, res) => {
+  const { careerId } = req.body;
+  if (!careerId) return res.status(400).json({ error: "Career ID required" });
+  try {
+    const { data: skills } = await supabase.from("career_skills").select("skill_name").eq("career_id", careerId);
+    const skillNames = skills.map(s => s.skill_name);
+    const { count: totalCareers } = await supabase.from("careers").select("*", { count: "exact", head: true }).neq("id", careerId);
+    if (!totalCareers) return res.json({ adaptabilityScore: 0 });
+    let totalOtherOccurrences = 0;
+    for (const skill of skillNames) {
+      const { count } = await supabase
+        .from("career_skills")
+        .select("*", { count: "exact", head: true })
+        .eq("skill_name", skill)
+        .neq("career_id", careerId);
+      totalOtherOccurrences += count || 0;
+    }
+    const maxPossible = skillNames.length * totalCareers;
+    const adaptabilityScore = maxPossible ? Math.round((totalOtherOccurrences / maxPossible) * 100) : 0;
+    res.json({ adaptabilityScore });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ========== ADMIN MIDDLEWARE ==========
@@ -251,40 +221,68 @@ const requireAdmin = async (req, res, next) => {
     .select("is_admin")
     .eq("id", userId)
     .single();
-  if (error || !profile || !profile.is_admin) {
-    return res.status(403).json({ error: "Admin access required" });
-  }
+  if (error || !profile || !profile.is_admin) return res.status(403).json({ error: "Admin access required" });
   next();
 };
 
-// ========== ADMIN CRUD for JOBS ==========
+// ========== ADMIN CRUD for CAREERS ==========
+app.get("/api/admin/careers", requireAdmin, async (req, res) => {
+  try { const careers = await fetchCareersFromDB(); res.json(careers); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.post("/api/admin/careers", requireAdmin, async (req, res) => {
+  const { name, description, interest, requiredSkills } = req.body;
+  if (!name || !interest) return res.status(400).json({ error: "Name and interest are required" });
+  try {
+    const { data: career, error: careerError } = await supabase
+      .from("careers")
+      .insert([{ name, description, interest }])
+      .select()
+      .single();
+    if (careerError) throw careerError;
+    if (requiredSkills && requiredSkills.length) {
+      const skillsData = requiredSkills.map(skill => ({ career_id: career.id, skill_name: skill.toLowerCase().trim(), weight: 3 }));
+      const { error: skillsError } = await supabase.from("career_skills").insert(skillsData);
+      if (skillsError) throw skillsError;
+    }
+    res.status(201).json(career);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.put("/api/admin/careers/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, interest, requiredSkills } = req.body;
+  try {
+    await supabase.from("careers").update({ name, description, interest }).eq("id", id);
+    await supabase.from("career_skills").delete().eq("career_id", id);
+    if (requiredSkills && requiredSkills.length) {
+      const skillsData = requiredSkills.map(skill => ({ career_id: id, skill_name: skill.toLowerCase().trim(), weight: 3 }));
+      await supabase.from("career_skills").insert(skillsData);
+    }
+    res.json({ message: "Career updated" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.delete("/api/admin/careers/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try { await supabase.from("careers").delete().eq("id", id); res.json({ message: "Career deleted" }); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========== OTHER ADMIN CRUD (jobs, learning paths) ==========
 app.get("/api/admin/jobs", requireAdmin, async (req, res) => {
   const { data, error } = await supabase.from("jobs").select("*").order("id");
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
-
 app.post("/api/admin/jobs", requireAdmin, async (req, res) => {
   const { title, company, location, salary, career_key, required_skills, description, apply_url } = req.body;
-  const { data, error } = await supabase
-    .from("jobs")
-    .insert([{ title, company, location, salary, career_key, required_skills, description, apply_url }])
-    .select();
+  const { data, error } = await supabase.from("jobs").insert([{ title, company, location, salary, career_key, required_skills, description, apply_url }]).select();
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json(data[0]);
 });
-
 app.put("/api/admin/jobs/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { data, error } = await supabase
-    .from("jobs")
-    .update(req.body)
-    .eq("id", id)
-    .select();
+  const { data, error } = await supabase.from("jobs").update(req.body).eq("id", id).select();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data[0]);
 });
-
 app.delete("/api/admin/jobs/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { error } = await supabase.from("jobs").delete().eq("id", id);
@@ -298,28 +296,18 @@ app.get("/api/admin/learning-paths", requireAdmin, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
-
 app.post("/api/admin/learning-paths", requireAdmin, async (req, res) => {
   const { career_key, period, skill, duration, resource_url, resource_type, display_order } = req.body;
-  const { data, error } = await supabase
-    .from("learning_paths")
-    .insert([{ career_key, period, skill, duration, resource_url, resource_type, display_order }])
-    .select();
+  const { data, error } = await supabase.from("learning_paths").insert([{ career_key, period, skill, duration, resource_url, resource_type, display_order }]).select();
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json(data[0]);
 });
-
 app.put("/api/admin/learning-paths/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { data, error } = await supabase
-    .from("learning_paths")
-    .update(req.body)
-    .eq("id", id)
-    .select();
+  const { data, error } = await supabase.from("learning_paths").update(req.body).eq("id", id).select();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data[0]);
 });
-
 app.delete("/api/admin/learning-paths/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { error } = await supabase.from("learning_paths").delete().eq("id", id);
@@ -327,7 +315,7 @@ app.delete("/api/admin/learning-paths/:id", requireAdmin, async (req, res) => {
   res.status(204).send();
 });
 
-// ========== AUTO JOB SCRAPING (Adzuna) ==========
+// ========== JOB SCRAPING ==========
 const categoryMap = {
   'it-jobs': 'software engineer',
   'data-science-jobs': 'data analyst',
@@ -335,18 +323,12 @@ const categoryMap = {
   'business-jobs': 'business analyst',
   'design-jobs': 'ui/ux designer'
 };
-
 function extractSkills(description) {
-  const skillKeywords = [
-    'javascript', 'react', 'node', 'python', 'sql', 'excel', 'statistics',
-    'linux', 'security', 'communication', 'analysis', 'design', 'java', 'c++',
-    'aws', 'docker', 'git', 'agile'
-  ];
+  const skillKeywords = ['javascript','react','node','python','sql','excel','statistics','linux','security','communication','analysis','design','java','c++','aws','docker','git','agile'];
   if (!description) return [];
   const lower = description.toLowerCase();
   return skillKeywords.filter(skill => lower.includes(skill));
 }
-
 async function scrapeJobs() {
   console.log('🔄 Adzuna job scrape started...');
   let added = 0, errors = 0;
@@ -376,47 +358,37 @@ async function scrapeJobs() {
           created_at: new Date(),
           updated_at: new Date()
         };
-        const { error } = await supabase
-          .from('jobs')
-          .upsert(jobData, { onConflict: 'title, company' });
-        if (error) {
-          console.error(`Error saving job ${job.title}:`, error.message);
-          errors++;
-        } else {
-          added++;
-        }
+        const { error } = await supabase.from('jobs').upsert(jobData, { onConflict: 'title, company' });
+        if (error) { errors++; } else { added++; }
       }
       await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err) {
-      console.error(`Failed to scrape category ${adzunaCategory}:`, err.message);
-      errors++;
-    }
+    } catch (err) { errors++; }
   }
   console.log(`✅ Scrape finished. Added/Updated: ${added}, Errors: ${errors}`);
   return { added, errors };
 }
-
-// Schedule daily scrape at 2 AM
-cron.schedule('0 2 * * *', () => {
-  console.log('⏰ Running scheduled job scrape...');
-  scrapeJobs().catch(err => console.error('Scheduled scrape failed:', err));
+cron.schedule('0 2 * * *', () => scrapeJobs().catch(err => console.error(err)));
+app.post('/api/admin/scrape-jobs', requireAdmin, async (req, res) => {
+  try { const result = await scrapeJobs(); res.json({ message: 'Scrape completed', result }); } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Admin endpoint to manually trigger scrape
-app.post('/api/admin/scrape-jobs', requireAdmin, async (req, res) => {
+// ========== DELETE AUTH USER ==========
+app.post('/api/admin/delete-user', requireAdmin, async (req, res) => {
+  const { userId } = req.body;
+  if (!userId || userId !== req.headers['x-user-id']) return res.status(403).json({ error: 'Unauthorized' });
   try {
-    const result = await scrapeJobs();
-    res.json({ message: 'Scrape completed', result });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    await supabase.from('profiles').delete().eq('id', userId);
+    const adminSupabase = require('./supabaseAdmin');
+    await adminSupabase.auth.admin.deleteUser(userId);
+    res.json({ message: 'User and all associated data deleted successfully' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ========== START SERVER ==========
-app.listen(5000, () => {
-  console.log("AI Server running on port 5000");
-  console.log("Careers available:", careers.map(c => c.name).join(", "));
-  console.log("Fuzzy matching enabled");
-  console.log("Gemini AI chatbot active on /api/chat");
-  console.log("Job scraper active (daily at 2 AM)");
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`AI Server running on port ${port}`);
+  console.log("Fuzzy matching enabled | Weighted skill importance active");
+  console.log("Gemini AI chatbot active | Learning paths personalisation ready");
+  console.log("Job scraper active (daily at 2 AM) | Career adaptability endpoint added");
 });

@@ -4,20 +4,17 @@ import { supabase } from "../lib/supabaseClient";
 
 function Onboarding() {
   const [step, setStep] = useState(1);
+  const [motivation, setMotivation] = useState("");
+  const [customMotivation, setCustomMotivation] = useState("");
   const [interest, setInterest] = useState("");
-  const [skills, setSkills] = useState<{name: string; proficiency: number}[]>([]);
+  const [skills, setSkills] = useState<{ name: string; proficiency: number }[]>([]);
   const [currentSkill, setCurrentSkill] = useState("");
   const [currentProficiency, setCurrentProficiency] = useState(3);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const nextStep = () => {
-    if (step < 3) setStep((prev) => prev + 1);
-  };
-
-  const prevStep = () => {
-    if (step > 1) setStep((prev) => prev - 1);
-  };
+  const nextStep = () => setStep((prev) => prev + 1);
+  const prevStep = () => setStep((prev) => prev - 1);
 
   const addSkill = () => {
     if (currentSkill.trim()) {
@@ -38,17 +35,15 @@ function Onboarding() {
     }
 
     setLoading(true);
-
     try {
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
-
       if (!user) {
         navigate("/login");
         return;
       }
 
-      const skillNames = skills.map(s => s.name);
+      const finalMotivation = motivation === "other" ? customMotivation : motivation;
 
       const { error: profileError } = await supabase
         .from("profiles")
@@ -56,8 +51,9 @@ function Onboarding() {
           id: user.id,
           email: user.email,
           interest: interest,
-          skills: skillNames,
-          updated_at: new Date().toISOString()
+          skills: skills.map(s => s.name),
+          motivation: finalMotivation,
+          updated_at: new Date().toISOString(),
         });
 
       if (profileError) {
@@ -70,7 +66,7 @@ function Onboarding() {
       const skillsData = skills.map(skill => ({
         user_id: user.id,
         skill_name: skill.name.toLowerCase().trim(),
-        proficiency: skill.proficiency
+        proficiency: skill.proficiency,
       }));
 
       const { error: skillsError } = await supabase
@@ -84,7 +80,6 @@ function Onboarding() {
 
       alert("Profile saved successfully!");
       window.location.href = "/dashboard";
-
     } catch (err) {
       alert("Server error: " + (err as Error).message);
     } finally {
@@ -92,30 +87,70 @@ function Onboarding() {
     }
   };
 
+  const motivationOptions = [
+    { value: "problem solving", label: "💡 Problem solving" },
+    { value: "helping people", label: "🤝 Helping people" },
+    { value: "working with data", label: "📊 Working with data" },
+    { value: "creativity", label: "🎨 Creativity" },
+  ];
+
   const interestOptions = [
     { value: "technology", label: "Technology" },
     { value: "business", label: "Business" },
-    { value: "science", label: "Science" }
+    { value: "science", label: "Science" },
   ];
 
   const quickSkills = ["Python", "JavaScript", "React", "SQL", "Excel", "Node.js", "Communication"];
 
   return (
     <div className="onboarding">
-      <div className="progress">
-        Step {step} of 3
-      </div>
+      <div className="progress">Step {step} of 3</div>
 
+      {/* STEP 1 – Motivation */}
       {step === 1 && (
         <div className="card">
-          <h2>What do you enjoy more?</h2>
-          <div className="button-group">
-            <button onClick={nextStep}>Solving problems</button>
-            <button onClick={nextStep}>Working with people</button>
+          <h2>What motivates you most?</h2>
+          <div className="motivation-options">
+            {motivationOptions.map(opt => (
+              <button
+                key={opt.value}
+                className={`motivation-btn ${motivation === opt.value ? "active" : ""}`}
+                onClick={() => {
+                  setMotivation(opt.value);
+                  setCustomMotivation("");
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <button
+              className={`motivation-btn ${motivation === "other" ? "active" : ""}`}
+              onClick={() => setMotivation("other")}
+            >
+              ✏️ Other (write your own)
+            </button>
+          </div>
+          {motivation === "other" && (
+            <input
+              type="text"
+              placeholder="e.g., Building things, teaching others, financial independence..."
+              value={customMotivation}
+              onChange={(e) => setCustomMotivation(e.target.value)}
+              className="motivation-input"
+            />
+          )}
+          <div className="nav-buttons">
+            <button
+              onClick={nextStep}
+              disabled={!motivation || (motivation === "other" && !customMotivation.trim())}
+            >
+              Next
+            </button>
           </div>
         </div>
       )}
 
+      {/* STEP 2 – Interest area */}
       {step === 2 && (
         <div className="card">
           <h2>Select your interest area</h2>
@@ -132,16 +167,19 @@ function Onboarding() {
           </div>
           <div className="nav-buttons">
             <button onClick={prevStep}>Back</button>
-            <button onClick={nextStep} disabled={!interest}>Next</button>
+            <button onClick={nextStep} disabled={!interest}>
+              Next
+            </button>
           </div>
         </div>
       )}
 
+      {/* STEP 3 – Skills */}
       {step === 3 && (
         <div className="card">
           <h2>Add your skills</h2>
           <p>Rate your proficiency (1-5):</p>
-          
+
           <div className="quick-add">
             <p>Quick add:</p>
             <div className="quick-buttons">
@@ -159,7 +197,7 @@ function Onboarding() {
               ))}
             </div>
           </div>
-          
+
           <div className="skill-input">
             <input
               type="text"
@@ -171,11 +209,11 @@ function Onboarding() {
               value={currentProficiency}
               onChange={(e) => setCurrentProficiency(Number(e.target.value))}
             >
-              <option value="1">1 - Beginner</option>
-              <option value="2">2 - Basic</option>
-              <option value="3">3 - Intermediate</option>
-              <option value="4">4 - Advanced</option>
-              <option value="5">5 - Expert</option>
+              <option value="1">1 – Beginner</option>
+              <option value="2">2 – Basic</option>
+              <option value="3">3 – Intermediate</option>
+              <option value="4">4 – Advanced</option>
+              <option value="5">5 – Expert</option>
             </select>
             <button onClick={addSkill}>+ Add</button>
           </div>
@@ -186,10 +224,13 @@ function Onboarding() {
               {skills.map((skill, index) => (
                 <div key={index} className="skill-item">
                   <span>
-                    {skill.name} - 
-                    {"★".repeat(skill.proficiency)}{"☆".repeat(5 - skill.proficiency)}
+                    {skill.name} –{" "}
+                    {"★".repeat(skill.proficiency)}
+                    {"☆".repeat(5 - skill.proficiency)}
                   </span>
-                  <button onClick={() => removeSkill(index)} className="remove-btn">Remove</button>
+                  <button onClick={() => removeSkill(index)} className="remove-btn">
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>

@@ -24,6 +24,7 @@ function Dashboard() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [expandedCareer, setExpandedCareer] = useState<number | null>(null);
   const [adaptabilityMap, setAdaptabilityMap] = useState<{ [key: number]: number }>({});
+  const [userInterests, setUserInterests] = useState<string[]>([]);
 
   const renderStars = (proficiency: number) => {
     return "★".repeat(proficiency) + "☆".repeat(5 - proficiency);
@@ -114,11 +115,25 @@ function Dashboard() {
         }
         setData(profile);
 
+       // Fetch user's multiple interests
+const { data: interestsData, error: interestsError } = await supabase
+  .from("user_interests")
+  .select("interests(name)")  // assuming the relation is named 'interests'
+  .eq("user_id", user.id);
+if (!interestsError && interestsData) {
+  // Use type assertion to avoid TypeScript error
+  const interestNames = (interestsData as any[]).map(row => row.interests?.name).filter(Boolean);
+  setUserInterests(interestNames);
+} else if (profile.interest) {
+  setUserInterests(profile.interest.split(',').map((s: string) => s.trim()));
+}
+
         setAiLoading(true);
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            userId: user.id,
             interest: profile.interest,
             skills: profile.skills
           }),
@@ -173,6 +188,18 @@ function Dashboard() {
         <div className="stat-card"><h3>Jobs Recommended</h3><div className="stat-value">{matches.length}</div><div className="stat-label">New opportunities</div></div>
       </div>
 
+      {/* Display user interests */}
+      {userInterests.length > 0 && (
+        <div className="interests-section">
+          <h3>Your Interests</h3>
+          <div className="tags">
+            {userInterests.map((interest, idx) => (
+              <span key={idx} className="interest-tag">{interest}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="matches-section">
         <h2>Top Career Matches</h2>
         <div className="matches-list">
@@ -192,7 +219,6 @@ function Dashboard() {
                 <div className="match-details">
                   <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
                   <p><strong>Missing Skills:</strong> {c.missingSkills?.length || 0}</p>
-                  {/* 🔥 Adaptability score */}
                   {c.id && adaptabilityMap[c.id] !== undefined && (
                     <div className="adaptability-score">
                       🔄 Transferable skills: {adaptabilityMap[c.id]}%

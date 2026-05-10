@@ -1,20 +1,48 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
+interface Interest {
+  id: number;
+  name: string;
+  category: string;
+}
+
 function Onboarding() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [motivation, setMotivation] = useState("");
   const [customMotivation, setCustomMotivation] = useState("");
-  const [interest, setInterest] = useState("");
+  const [careerStage, setCareerStage] = useState("");
+  const [degreeProgram, setDegreeProgram] = useState("");
+  const [yearOfStudy, setYearOfStudy] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [workExperience, setWorkExperience] = useState("");
+  const [allInterests, setAllInterests] = useState<Interest[]>([]);
+  const [interestsLoading, setInterestsLoading] = useState(true);
+  const [selectedInterestIds, setSelectedInterestIds] = useState<number[]>([]);
   const [skills, setSkills] = useState<{ name: string; proficiency: number }[]>([]);
   const [currentSkill, setCurrentSkill] = useState("");
   const [currentProficiency, setCurrentProficiency] = useState(3);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  const nextStep = () => setStep((prev) => prev + 1);
-  const prevStep = () => setStep((prev) => prev - 1);
+  const nextStep = () => setStep(prev => prev + 1);
+  const prevStep = () => setStep(prev => prev - 1);
+
+  // Fetch interests from DB
+  useEffect(() => {
+    const fetchInterests = async () => {
+      setInterestsLoading(true);
+      const { data, error } = await supabase.from("interests").select("*");
+      if (error) {
+        console.error("Error fetching interests:", error);
+      } else if (data) {
+        setAllInterests(data);
+      }
+      setInterestsLoading(false);
+    };
+    fetchInterests();
+  }, []);
 
   const addSkill = () => {
     if (currentSkill.trim()) {
@@ -28,9 +56,17 @@ function Onboarding() {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
+  const toggleInterest = (interestId: number) => {
+    setSelectedInterestIds(prev =>
+      prev.includes(interestId)
+        ? prev.filter(id => id !== interestId)
+        : [...prev, interestId]
+    );
+  };
+
   const finish = async () => {
-    if (!interest || skills.length === 0) {
-      alert("Please select interest and add at least one skill");
+    if (!careerStage || selectedInterestIds.length === 0 || skills.length === 0) {
+      alert("Please complete all steps (career stage, interests, and at least one skill)");
       return;
     }
 
@@ -45,43 +81,50 @@ function Onboarding() {
 
       const finalMotivation = motivation === "other" ? customMotivation : motivation;
 
+      // Upsert profile
       const { error: profileError } = await supabase
         .from("profiles")
         .upsert({
           id: user.id,
           email: user.email,
-          interest: interest,
+          interest: selectedInterestIds.map(id => allInterests.find(i => i.id === id)?.name).join(","),
           skills: skills.map(s => s.name),
           motivation: finalMotivation,
-          updated_at: new Date().toISOString(),
+          career_stage: careerStage,
+          degree_program: degreeProgram,
+          year_of_study: yearOfStudy,
+          institution: institution,
+          work_experience: workExperience || null,
+          updated_at: new Date().toISOString()
         });
 
-      if (profileError) {
-        alert("Error saving profile: " + profileError.message);
-        return;
+      if (profileError) throw profileError;
+
+      // Save user interests (many-to-many)
+      await supabase.from("user_interests").delete().eq("user_id", user.id);
+      const interestsData = selectedInterestIds.map(id => ({
+        user_id: user.id,
+        interest_id: id
+      }));
+      if (interestsData.length) {
+        const { error: interestError } = await supabase.from("user_interests").insert(interestsData);
+        if (interestError) console.error("Interest error:", interestError);
       }
 
+      // Save skills
       await supabase.from("user_skills").delete().eq("user_id", user.id);
-
       const skillsData = skills.map(skill => ({
         user_id: user.id,
         skill_name: skill.name.toLowerCase().trim(),
-        proficiency: skill.proficiency,
+        proficiency: skill.proficiency
       }));
-
-      const { error: skillsError } = await supabase
-        .from("user_skills")
-        .insert(skillsData);
-
-      if (skillsError) {
-        alert("Error saving skills: " + skillsError.message);
-        return;
-      }
+      const { error: skillsError } = await supabase.from("user_skills").insert(skillsData);
+      if (skillsError) throw skillsError;
 
       alert("Profile saved successfully!");
       window.location.href = "/dashboard";
-    } catch (err) {
-      alert("Server error: " + (err as Error).message);
+    } catch (err: any) {
+      alert("Error: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -94,17 +137,11 @@ function Onboarding() {
     { value: "creativity", label: "🎨 Creativity" },
   ];
 
-  const interestOptions = [
-    { value: "technology", label: "Technology" },
-    { value: "business", label: "Business" },
-    { value: "science", label: "Science" },
-  ];
-
   const quickSkills = ["Python", "JavaScript", "React", "SQL", "Excel", "Node.js", "Communication"];
 
   return (
     <div className="onboarding">
-      <div className="progress">Step {step} of 3</div>
+      <div className="progress">Step {step} of 4</div>
 
       {/* STEP 1 – Motivation */}
       {step === 1 && (
@@ -140,46 +177,116 @@ function Onboarding() {
             />
           )}
           <div className="nav-buttons">
-            <button
-              onClick={nextStep}
-              disabled={!motivation || (motivation === "other" && !customMotivation.trim())}
-            >
+            <button onClick={nextStep} disabled={!motivation || (motivation === "other" && !customMotivation.trim())}>
               Next
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 2 – Interest area */}
+      {/* STEP 2 – Career Stage & Academic Background */}
       {step === 2 && (
         <div className="card">
-          <h2>Select your interest area</h2>
-          <div className="interest-buttons">
-            {interestOptions.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setInterest(opt.value)}
-                className={interest === opt.value ? "active" : ""}
-              >
-                {opt.label}
+          <h2>Tell us about yourself</h2>
+          <div className="form-group">
+            <label>Career Stage *</label>
+            <div className="interest-buttons">
+              <button className={careerStage === "student" ? "active" : ""} onClick={() => setCareerStage("student")}>
+                🎓 Student
               </button>
-            ))}
+              <button className={careerStage === "recent_graduate" ? "active" : ""} onClick={() => setCareerStage("recent_graduate")}>
+                📜 Recent Graduate (&lt;2 years)
+              </button>
+              <button className={careerStage === "career_switcher" ? "active" : ""} onClick={() => setCareerStage("career_switcher")}>
+                🔄 Career Switcher
+              </button>
+            </div>
           </div>
+
+          {(careerStage === "student" || careerStage === "recent_graduate") && (
+            <>
+              <div className="form-group">
+                <label>Degree Program</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Computer Science, Business Administration"
+                  value={degreeProgram}
+                  onChange={(e) => setDegreeProgram(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Year of Study (or year graduated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 3rd Year, 2024"
+                  value={yearOfStudy}
+                  onChange={(e) => setYearOfStudy(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Institution</label>
+                <input
+                  type="text"
+                  placeholder="e.g., University of Zimbabwe"
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          {careerStage === "career_switcher" && (
+            <div className="form-group">
+              <label>Previous Work Experience (Optional)</label>
+              <textarea
+                placeholder="Describe your previous roles, industry, and transferable skills"
+                value={workExperience}
+                onChange={(e) => setWorkExperience(e.target.value)}
+                rows={3}
+              />
+            </div>
+          )}
+
           <div className="nav-buttons">
             <button onClick={prevStep}>Back</button>
-            <button onClick={nextStep} disabled={!interest}>
-              Next
-            </button>
+            <button onClick={nextStep} disabled={!careerStage}>Next</button>
           </div>
         </div>
       )}
 
-      {/* STEP 3 – Skills */}
+      {/* STEP 3 – Multiple Interests */}
       {step === 3 && (
+        <div className="card">
+          <h2>Select your interests (you can choose multiple)</h2>
+          {interestsLoading ? (
+            <div className="loading">Loading interests...</div>
+          ) : allInterests.length === 0 ? (
+            <div className="error-message">No interests available. Please contact admin.</div>
+          ) : (
+            <div className="interests-grid">
+              {allInterests.map(interest => (
+                <button
+                  key={interest.id}
+                  className={`interest-checkbox ${selectedInterestIds.includes(interest.id) ? "active" : ""}`}
+                  onClick={() => toggleInterest(interest.id)}
+                >
+                  {interest.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="nav-buttons">
+            <button onClick={prevStep}>Back</button>
+            <button onClick={nextStep} disabled={selectedInterestIds.length === 0}>Next</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 4 – Skills */}
+      {step === 4 && (
         <div className="card">
           <h2>Add your skills</h2>
           <p>Rate your proficiency (1-5):</p>
-
           <div className="quick-add">
             <p>Quick add:</p>
             <div className="quick-buttons">
@@ -197,7 +304,6 @@ function Onboarding() {
               ))}
             </div>
           </div>
-
           <div className="skill-input">
             <input
               type="text"
@@ -217,16 +323,13 @@ function Onboarding() {
             </select>
             <button onClick={addSkill}>+ Add</button>
           </div>
-
           {skills.length > 0 && (
             <div className="skills-list">
               <h4>Your Skills:</h4>
               {skills.map((skill, index) => (
                 <div key={index} className="skill-item">
                   <span>
-                    {skill.name} –{" "}
-                    {"★".repeat(skill.proficiency)}
-                    {"☆".repeat(5 - skill.proficiency)}
+                    {skill.name} – {"★".repeat(skill.proficiency)}{"☆".repeat(5 - skill.proficiency)}
                   </span>
                   <button onClick={() => removeSkill(index)} className="remove-btn">
                     Remove
@@ -235,7 +338,6 @@ function Onboarding() {
               ))}
             </div>
           )}
-
           <div className="nav-buttons">
             <button onClick={prevStep}>Back</button>
             <button onClick={finish} disabled={skills.length === 0 || loading}>

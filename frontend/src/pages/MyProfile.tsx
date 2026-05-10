@@ -9,6 +9,7 @@ function MyProfile() {
   const { user: authUser } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [skills, setSkills] = useState<{ name: string; proficiency: number }[]>([]);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
   const [aboutMe, setAboutMe] = useState("");
   const [editingAbout, setEditingAbout] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -51,25 +52,39 @@ function MyProfile() {
           .from("user_skills")
           .select("skill_name, proficiency")
           .eq("user_id", profileData.id);
+        let userSkillsArray: { name: string; proficiency: number }[] = [];
         if (userSkills && userSkills.length > 0) {
-          setSkills(userSkills.map(s => ({ name: s.skill_name, proficiency: s.proficiency })));
+          userSkillsArray = userSkills.map(s => ({ name: s.skill_name, proficiency: s.proficiency }));
         } else if (profileData.skills && typeof profileData.skills === 'string') {
           const skillNames = profileData.skills.split(',').map((s: string) => s.trim());
-          // ✅ FIXED: added explicit type for name
-          setSkills(skillNames.map((name: string) => ({ name, proficiency: 3 })));
+          userSkillsArray = skillNames.map((name: string) => ({ name, proficiency: 3 }));
         } else if (Array.isArray(profileData.skills) && profileData.skills.length > 0) {
-          setSkills(profileData.skills.map((s: string) => ({ name: s, proficiency: 3 })));
-        } else {
-          setSkills([]);
+          userSkillsArray = profileData.skills.map((s: string) => ({ name: s, proficiency: 3 }));
         }
+        setSkills(userSkillsArray);
 
-        // Fetch AI matches for recommended focus
+        // Get user interests (multiple)
+const { data: interestsData, error: interestsError } = await supabase
+  .from("user_interests")
+  .select("interests(name)")
+  .eq("user_id", user.id);
+if (!interestsError && interestsData) {
+  const interestNames = (interestsData as any[]).map(row => row.interests?.name).filter(Boolean);
+  setUserInterests(interestNames);
+} else if (profileData.interest) {
+  setUserInterests(profileData.interest.split(',').map((s: string) => s.trim()));
+} else {
+  setUserInterests([]);
+}
+
+        // Fetch AI matches for recommended focus (use the fresh skills array)
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             interest: profileData.interest,
-            skills: skills.map(s => ({ name: s.name, proficiency: s.proficiency })),
+            skills: userSkillsArray, // use fresh array, not state
+            userId: user.id, // pass userId so backend can fetch multiple interests
           }),
         });
         const result = await res.json();
@@ -273,13 +288,25 @@ function MyProfile() {
             )}
           </div>
 
+          {/* Display multiple interests */}
+          {userInterests.length > 0 && (
+            <div className="interests-card">
+              <h3>Your Interests</h3>
+              <div className="tags">
+                {userInterests.map((interest, idx) => (
+                  <span key={idx} className="interest-tag">{interest}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="profile-completion-details">
             <h3>My Profile Completion</h3>
             <ul>
               <li>✅ Basic Information</li>
               <li>{skills.length > 0 ? "✅" : "❌"} Skills Added ({skills.length} skills)</li>
-              <li>{profile?.interest ? "✅" : "❌"} Interest Selected</li>
-              <li>⏳ Experience Level (coming soon)</li>
+              <li>{profile?.degree_program ? "✅" : "❌"} Degree Program {profile?.degree_program && `(${profile.degree_program})`}</li>
+              <li>{profile?.career_stage ? "✅" : "❌"} Career Stage {profile?.career_stage && `(${profile.career_stage})`}</li>
               <li>{avatarUrl ? "✅" : "❌"} Profile Picture</li>
               <li>{aboutMe?.length > 10 ? "✅" : "❌"} Career Goals</li>
             </ul>

@@ -37,6 +37,16 @@ async function fetchCareersFromDB() {
   return careers;
 }
 
+// ========== FETCH USER INTERESTS (multiple) ==========
+async function fetchUserInterests(userId) {
+  const { data, error } = await supabase
+    .from("user_interests")
+    .select("interests(name)")
+    .eq("user_id", userId);
+  if (error || !data) return [];
+  return data.map(row => row.interests.name);
+}
+
 function normalize(text) { return text.toLowerCase().trim(); }
 
 // ========== FUZZY MATCHING ==========
@@ -63,8 +73,8 @@ function findMatchingSkills(userSkills, requiredSkills) {
   return { matched, missing };
 }
 
-// ========== WEIGHTED AI MATCHING ENGINE (ALSO RETURNS CAREER ID) ==========
-function getCareerMatches(profile, careers) {
+// ========== WEIGHTED AI MATCHING ENGINE (supports multiple interests) ==========
+function getCareerMatches(profile, careers, userInterestList = []) {
   let userSkillsList = [], userSkillsMap = new Map();
   if (profile.skills.length && typeof profile.skills[0] === 'object') {
     profile.skills.forEach(skill => {
@@ -79,7 +89,7 @@ function getCareerMatches(profile, careers) {
       userSkillsMap.set(skillName, 3);
     });
   }
-  const userInterest = normalize(profile.interest);
+
   const results = careers.map(career => {
     const required = career.requiredSkills.map(normalize);
     const { matched, missing } = findMatchingSkills(userSkillsList, required);
@@ -94,14 +104,30 @@ function getCareerMatches(profile, careers) {
       }
     });
     const skillScore = totalWeighted > 0 ? (earnedWeighted / totalWeighted) * 70 : 0;
-    const interestScore = normalize(career.interest) === userInterest ? 30 : 10;
+
+    // Interest score – supports multiple interests
+    let interestScore = 10; // base
+    const careerInterestNorm = normalize(career.interest);
+    if (userInterestList.length > 0) {
+      // For multiple interests: increase score if any interest matches
+      const matchedInterests = userInterestList.filter(ui => normalize(ui) === careerInterestNorm).length;
+      if (matchedInterests > 0) {
+        interestScore = 20 + (matchedInterests * 5); // max 30 (if two match)
+      }
+    } else if (profile.interest) {
+      // Fallback to legacy single interest
+      interestScore = normalize(career.interest) === normalize(profile.interest) ? 30 : 10;
+    }
+
     const score = Math.round(skillScore + interestScore);
     const completion = totalWeighted > 0 ? Math.round((earnedWeighted / totalWeighted) * 100) : 0;
+
     let reasoning = "";
     if (completion >= 80) reasoning = `Excellent match! You have strong proficiency in ${matched.length}/${required.length} required skills.`;
     else if (completion >= 50) reasoning = `Good match — you have ${matched.length}/${required.length} key skills. Improve proficiency for better matches.`;
     else if (completion > 0) reasoning = `Potential match — you have ${matched.length}/${required.length} skills. Focus on: ${missing.join(", ")}.`;
     else reasoning = `Low match — consider learning: ${missing.join(", ")}.`;
+
     return {
       name: career.name,
       score,
@@ -111,7 +137,7 @@ function getCareerMatches(profile, careers) {
       missingSkills: missing,
       completion,
       reasoning,
-      id: career.id   // ✅ included for adaptability endpoint
+      id: career.id
     };
   });
   return results.sort((a, b) => b.score - a.score);
@@ -166,12 +192,23 @@ app.post("/api/roadmap", async (req, res) => {
 
 app.post("/ai/match", async (req, res) => {
   const profile = req.body;
-  if (!profile || !profile.skills || !profile.interest) return res.status(400).json({ error: "Missing profile data" });
+  if (!profile || !profile.skills) return res.status(400).json({ error: "Missing profile data" });
   try {
     const careers = await fetchCareersFromDB();
-    const results = getCareerMatches(profile, careers);
+    let userInterestList = [];
+    // If userId is provided, fetch interests from DB (multiple)
+    if (profile.userId) {
+      userInterestList = await fetchUserInterests(profile.userId);
+    } else if (profile.interest && typeof profile.interest === 'string') {
+      // fallback: split comma-separated interests from legacy profile
+      userInterestList = profile.interest.split(',').map(s => s.trim());
+    }
+    const results = getCareerMatches(profile, careers, userInterestList);
     res.json(results);
-  } catch (err) { res.json([]); }
+  } catch (err) {
+    console.error(err);
+    res.json([]);
+  }
 });
 
 app.post("/api/chat", async (req, res) => {
@@ -384,6 +421,116 @@ app.post('/api/admin/delete-user', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ========== ADMIN ANALYTICS (REAL DATA) ==========
+app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
+  try {
+    // 1. Total users & total jobs
+    const [
+      { count: totalUsers },
+      { count: totalJobs }
+    ] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("jobs").select("id", { count: "exact", head: true })
+    ]);
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, created_at, interest")
+      .order("created_at", { ascending: true });
+
+    const profileIds = (profiles || []).map((p) => p.id);
+    const { data: skillRows } = profileIds.length
+      ? await supabase
+          .from("user_skills")
+          .select("user_id, skill_name, proficiency")
+          .in("user_id", profileIds)
+      : { data: [] };
+
+    const { data: interestRows } = profileIds.length
+      ? await supabase
+          .from("user_interests")
+          .select("user_id, interests(name)")
+          .in("user_id", profileIds)
+      : { data: [] };
+
+    const skillsByUser = new Map();
+    (skillRows || []).forEach((row) => {
+      const list = skillsByUser.get(row.user_id) || [];
+      list.push({ name: row.skill_name, proficiency: row.proficiency });
+      skillsByUser.set(row.user_id, list);
+    });
+
+    const interestsByUser = new Map();
+    (interestRows || []).forEach((row) => {
+      const list = interestsByUser.get(row.user_id) || [];
+      if (row.interests?.name) list.push(row.interests.name);
+      interestsByUser.set(row.user_id, list);
+    });
+
+    const careers = await fetchCareersFromDB();
+    const careerCount = {};
+    const missingCount = {};
+
+    const now = new Date();
+    const lastSixMonths = [];
+    for (let offset = 5; offset >= 0; offset--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      lastSixMonths.push(key);
+    }
+    const monthCounts = Object.fromEntries(lastSixMonths.map((month) => [month, 0]));
+
+    (profiles || []).forEach((profile) => {
+      if (!profile.created_at) return;
+      const date = new Date(profile.created_at);
+      const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      if (monthKey in monthCounts) monthCounts[monthKey] += 1;
+    });
+
+    const userGrowth = lastSixMonths.map((month) => ({ month, users: monthCounts[month] || 0 }));
+
+    (profiles || []).forEach((profile) => {
+      const skills = skillsByUser.get(profile.id) || [];
+      if (skills.length === 0) return;
+
+      const interestList = interestsByUser.get(profile.id) || [];
+      if (interestList.length === 0 && profile.interest) {
+        interestList.push(...String(profile.interest).split(",").map((i) => i.trim()).filter(Boolean));
+      }
+
+      const userProfile = { interest: profile.interest, skills };
+      const matches = getCareerMatches(userProfile, careers, interestList);
+      if (matches.length > 0) {
+        const topMatch = matches[0];
+        careerCount[topMatch.name] = (careerCount[topMatch.name] || 0) + 1;
+        (topMatch.missingSkills || []).forEach((skill) => {
+          missingCount[skill] = (missingCount[skill] || 0) + 1;
+        });
+      }
+    });
+
+    const careerMatchesStats = Object.entries(careerCount)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({ name, value }));
+
+    const skillGaps = Object.entries(missingCount)
+      .map(([skill, count]) => ({ skill, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    res.json({
+      totalUsers: totalUsers || 0,
+      totalJobs: totalJobs || 0,
+      userGrowth,
+      careerMatchesStats,
+      skillGaps,
+    });
+  } catch (err) {
+    console.error("Analytics error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== START SERVER ==========
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
@@ -391,4 +538,5 @@ app.listen(port, () => {
   console.log("Fuzzy matching enabled | Weighted skill importance active");
   console.log("Gemini AI chatbot active | Learning paths personalisation ready");
   console.log("Job scraper active (daily at 2 AM) | Career adaptability endpoint added");
+  console.log("Multiple interest support active");
 });

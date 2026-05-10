@@ -5,7 +5,6 @@ import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import DemoDashboard from "./pages/DemoDashboard";
-import ProtectedRoute from "./components/ProtectedRoute";
 import AdminCheck from "./components/AdminCheck";
 import AdminJobs from "./pages/AdminJobs";
 import AdminLearningPaths from "./pages/AdminLearningPaths";
@@ -45,13 +44,11 @@ function App() {
         <Route path="/chat-assistant" element={<ChatAssistant />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/admin/jobs" element={<AdminCheck><AdminJobs /></AdminCheck>} />
+        <Route path="/admin/learning-paths" element={<AdminCheck><AdminLearningPaths /></AdminCheck>} />
+        <Route path="/admin/analytics" element={<AdminCheck><AdminAnalytics /></AdminCheck>} />
+        <Route path="/admin/careers" element={<AdminCheck><AdminCareers /></AdminCheck>} />
       </Route>
-
-      {/* Admin routes (can also be wrapped if you want sidebar for admin) */}
-      <Route path="/admin/jobs" element={<AdminCheck><AdminJobs /></AdminCheck>} />
-      <Route path="/admin/learning-paths" element={<AdminCheck><AdminLearningPaths /></AdminCheck>} />
-      <Route path="/admin/analytics" element={<AdminCheck><AdminAnalytics /></AdminCheck>} />
-      <Route path="/admin/careers" element={<AdminCheck><AdminCareers /></AdminCheck>} />
 
       {/* 404 */}
       <Route path="*" element={<div>404 - Page not found</div>} />

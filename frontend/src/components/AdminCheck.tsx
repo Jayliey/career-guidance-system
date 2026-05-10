@@ -1,46 +1,38 @@
-import React, { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 
-interface AdminCheckProps {
-  children: React.ReactNode;
-}
-
-export default function AdminCheck({ children }: AdminCheckProps) {
+export default function AdminCheck({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     const checkAdmin = async () => {
-      const { data, error } = await supabase.auth.getUser();
-
-      if (error || !data?.user) {
+      if (!user) {
+        console.log("AdminCheck: No user found");
         setIsAdmin(false);
         return;
       }
-
-      const user = data.user;
-
-      const { data: profile, error: profileError } = await supabase
+      console.log("AdminCheck: user.id =", user.id);
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("is_admin")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profile) {
-        console.error("Profile fetch error:", profileError?.message);
+      if (error) {
+        console.error("AdminCheck error:", error);
         setIsAdmin(false);
         return;
       }
-
-      setIsAdmin(profile.is_admin === true);
+      console.log("AdminCheck: profile =", profile);
+      setIsAdmin(profile?.is_admin === true);
     };
-
     checkAdmin();
-  }, []);
+  }, [user]);
 
-  if (isAdmin === null) {
-    return <div className="loading">Checking permissions...</div>;
-  }
-
+  if (isAdmin === null) return <div className="loading">Checking permissions...</div>;
+  console.log("AdminCheck: isAdmin =", isAdmin);
   return isAdmin ? <>{children}</> : <Navigate to="/" replace />;
 }

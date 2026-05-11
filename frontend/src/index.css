@@ -1639,6 +1639,22 @@ body {
   border: 1px solid #4f8cff;
   color: white;
 }
+.error-text {
+  color: #ff6b6b;
+  margin-bottom: 12px;
+}
+.success-text {
+  color: #7fd27f;
+  margin-bottom: 12px;
+}
+.detected-list {
+  list-style: disc inside;
+  margin: 10px 0 0 0;
+  padding-left: 18px;
+}
+.detected-list li {
+  margin-bottom: 6px;
+}
 
 /* ========== JOB LISTINGS MODAL ========== */
 .jobs-modal-overlay {
@@ -3666,6 +3682,7 @@ body {
   font-size: 0.8rem;
 }
 
+<<<<<<< HEAD
 .interests-grid {
   display: flex;
   flex-wrap: wrap;
@@ -3763,3 +3780,71 @@ body {
   margin-bottom: 20px;
   font-size: 1.2rem;
 }
+=======
+.ml-prediction-banner {
+  background: linear-gradient(135deg, #4f8cff, #a855f7);
+  padding: 10px 20px;
+  border-radius: 40px;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+/* Learning progress */
+.progress-section {
+  margin: 16px 0;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+.progress-bar-bg {
+  position: relative;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  height: 8px;
+  overflow: hidden;
+}
+.progress-bar-fill-completed {
+  position: absolute;
+  height: 100%;
+  background: #4CAF50;
+  border-radius: 10px;
+  transition: width 0.3s;
+}
+.progress-bar-fill-progress {
+  position: absolute;
+  height: 100%;
+  background: #FF9800;
+  border-radius: 10px;
+  transition: width 0.3s;
+}
+.status-dropdown {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-dropdown select {
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid #4f8cff;
+  color: white;
+}
+
+.details-btn {
+  margin-top: 12px;
+  padding: 6px 14px;
+  background: rgba(79,140,255,0.2);
+  border: 1px solid #4f8cff;
+  border-radius: 40px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.details-btn:hover {
+  background: rgba(183, 186, 190, 0.4);
+}
+>>>>>>> develop

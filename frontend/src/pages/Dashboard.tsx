@@ -5,8 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import CareerRoadmap from "../components/CareerRoadmap";
 import ReportGenerator from "../components/ReportGenerator";
 import JobListings from "../components/JobListings";
-import Chatbot from "../components/Chatbot";
 import EditProfileModal from "../components/EditProfileModal";
+import CVUploadModal from "../components/CVUploadModal";
+import CareerDetailsModal from "../components/CareerDetailsModal";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -14,17 +15,23 @@ function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [selectedCareer, setSelectedCareer] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [showJobs, setShowJobs] = useState(false);
+  const [showCvModal, setShowCvModal] = useState(false);
   const [selectedJobCareer, setSelectedJobCareer] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [expandedCareer, setExpandedCareer] = useState<number | null>(null);
   const [adaptabilityMap, setAdaptabilityMap] = useState<{ [key: number]: number }>({});
+
+  // ========== MISSING STATES ADDED ==========
+  const [progressStats, setProgressStats] = useState({ completed: 0, total: 0, percent: 0 });
   const [userInterests, setUserInterests] = useState<string[]>([]);
+  const [mlPrediction, setMlPrediction] = useState<any>(null);
+  const [showCareerDetails, setShowCareerDetails] = useState(false);
+  const [selectedCareerId, setSelectedCareerId] = useState<number | null>(null);
 
   const renderStars = (proficiency: number) => {
     return "★".repeat(proficiency) + "☆".repeat(5 - proficiency);
@@ -55,6 +62,33 @@ function Dashboard() {
 
   const refreshDashboard = () => {
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  // Fetch progress for the top career (used for the stats card)
+  const fetchProgressForCareer = async (careerName: string, userId: string) => {
+    try {
+      const careerKey = careerName.toLowerCase();
+      const { data: paths, error: pathsError } = await supabase
+        .from("learning_paths")
+        .select("skill")
+        .eq("career_key", careerKey);
+      if (pathsError) throw pathsError;
+      const totalSkills = paths.length;
+
+      const { data: progress, error: progressError } = await supabase
+        .from("learning_progress")
+        .select("skill_name")
+        .eq("user_id", userId)
+        .eq("career_key", careerKey)
+        .eq("status", "completed");
+      if (progressError) throw progressError;
+      const completedSkills = progress.length;
+
+      const percent = totalSkills > 0 ? Math.round((completedSkills / totalSkills) * 100) : 0;
+      setProgressStats({ completed: completedSkills, total: totalSkills, percent });
+    } catch (err) {
+      console.error("Error fetching progress stats:", err);
+    }
   };
 
   // Fetch adaptability score when a career card is expanded
@@ -115,35 +149,39 @@ function Dashboard() {
         }
         setData(profile);
 
-       // Fetch user's multiple interests
-const { data: interestsData, error: interestsError } = await supabase
-  .from("user_interests")
-  .select("interests(name)")  // assuming the relation is named 'interests'
-  .eq("user_id", user.id);
-if (!interestsError && interestsData) {
-  // Use type assertion to avoid TypeScript error
-  const interestNames = (interestsData as any[]).map(row => row.interests?.name).filter(Boolean);
-  setUserInterests(interestNames);
-} else if (profile.interest) {
-  setUserInterests(profile.interest.split(',').map((s: string) => s.trim()));
-}
+        // Fetch user's multiple interests
+        const { data: interestsData, error: interestsError } = await supabase
+          .from("user_interests")
+          .select("interests(name)")
+          .eq("user_id", user.id);
+        if (!interestsError && interestsData) {
+          const interestNames = (interestsData as any[]).map(row => row.interests?.name).filter(Boolean);
+          setUserInterests(interestNames);
+        } else if (profile.interest) {
+          setUserInterests(profile.interest.split(',').map((s: string) => s.trim()));
+        }
 
-        setAiLoading(true);
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: user.id,
             interest: profile.interest,
             skills: profile.skills
           }),
         });
         const result = await res.json();
-        setMatches(result);
-        setAiLoading(false);
+        const matchesArray = result.matches || [];
+        setMatches(matchesArray);
+        if (result.mlPrediction) {
+          setMlPrediction(result.mlPrediction);
+          console.log("ML Prediction:", result.mlPrediction);
+        }
+
+        if (matchesArray.length > 0) {
+          await fetchProgressForCareer(matchesArray[0].name, user.id);
+        }
       } catch (err) {
         console.error(err);
-        setAiLoading(false);
       } finally {
         setLoading(false);
       }
@@ -172,6 +210,7 @@ if (!interestsError && interestsData) {
         <h1>Career Dashboard</h1>
         <div className="header-actions">
           <button onClick={() => setShowEditModal(true)} className="edit-profile-btn">✏️ Edit Profile</button>
+          <button onClick={() => setShowCvModal(true)} className="edit-profile-btn">📄 Upload CV</button>
           <button onClick={downloadReport} className="download-report-btn" disabled={downloading}>📄 Download Report</button>
         </div>
       </div>
@@ -181,10 +220,20 @@ if (!interestsError && interestsData) {
         <p>Here’s your personalized career overview</p>
       </div>
 
+      {mlPrediction && (
+        <div className="ml-prediction-banner">
+          🤖 ML Model Suggests: <strong>{mlPrediction.predicted_career}</strong> (confidence: {mlPrediction.confidence}%)
+        </div>
+      )}
+
       <div className="stats-grid">
         <div className="stat-card"><h3>Overall Match Score</h3><div className="stat-value">{topMatchScore}%</div><div className="stat-label">Good Match</div></div>
         <div className="stat-card"><h3>Skill Completion</h3><div className="stat-value">{overallCompletion}%</div><div className="stat-label">Keep improving!</div></div>
-        <div className="stat-card"><h3>Roadmaps Progress</h3><div className="stat-value">35%</div><div className="stat-label">2/6 Roadmaps</div></div>
+        <div className="stat-card">
+          <h3>Learning Progress</h3>
+          <div className="stat-value">{progressStats.percent}%</div>
+          <div className="stat-label">{progressStats.completed}/{progressStats.total} skills completed</div>
+        </div>
         <div className="stat-card"><h3>Jobs Recommended</h3><div className="stat-value">{matches.length}</div><div className="stat-label">New opportunities</div></div>
       </div>
 
@@ -228,6 +277,16 @@ if (!interestsError && interestsData) {
                   <div className="match-buttons">
                     <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>🗺️ View Learning Path</button>
                     <button className="jobs-btn" onClick={() => openJobs(c.name)}>💼 View Jobs</button>
+                    <button
+                      className="details-btn"
+                      onClick={() => {
+                        console.log("Career ID being passed:", c.id);
+                        setSelectedCareerId(c.id);
+                        setShowCareerDetails(true);
+                      }}
+                    >
+                      🔍 See more
+                    </button>
                   </div>
                 </div>
               )}
@@ -272,6 +331,7 @@ if (!interestsError && interestsData) {
           careerName={selectedCareer}
           onClose={() => setShowRoadmap(false)}
           userSkills={data.skills}
+          userId={authUser?.id}
         />
       )}
       {showJobs && (
@@ -283,6 +343,24 @@ if (!interestsError && interestsData) {
           currentProfile={data}
           onClose={() => setShowEditModal(false)}
           onUpdate={refreshDashboard}
+        />
+      )}
+      {showCvModal && (
+        <CVUploadModal
+          userId={authUser?.id}
+          userEmail={authUser?.email}
+          onClose={() => setShowCvModal(false)}
+          onSaved={() => {
+            setShowCvModal(false);
+            refreshDashboard();
+          }}
+        />
+      )}
+      {showCareerDetails && selectedCareerId && (
+        <CareerDetailsModal
+          careerId={selectedCareerId}
+          careerName={matches.find(m => m.id === selectedCareerId)?.name || ""}
+          onClose={() => setShowCareerDetails(false)}
         />
       )}
     </div>

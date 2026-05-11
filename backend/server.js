@@ -2,14 +2,20 @@ const express = require("express");
 const cors = require("cors");
 const fuzzball = require("fuzzball");
 const supabase = require("./supabaseClient");
+const supabaseAdmin = require("./supabaseAdmin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require("axios");
+const multer = require("multer");
+const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
+const path = require("path");
 const cron = require("node-cron");
 require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 // ========== HEALTH CHECK ==========
 app.get("/health", (req, res) => {
@@ -37,7 +43,55 @@ async function fetchCareersFromDB() {
   return careers;
 }
 
-function normalize(text) { return text.toLowerCase().trim(); }
+function normalize(text) { return String(text || '').toLowerCase().trim(); }
+
+async function getSkillKeywordList() {
+  try {
+    const { data: skills, error } = await supabase.from("skills").select("name");
+    if (!error && skills && skills.length) {
+      return skills.map(s => normalize(s.name));
+    }
+  } catch (err) {
+    console.error("Skill keywords lookup failed, using fallback list", err.message || err);
+  }
+  return [
+    'python', 'javascript', 'react', 'node', 'sql', 'excel', 'statistics',
+    'communication', 'problem solving', 'project management', 'design',
+    'linux', 'security', 'aws', 'docker', 'git', 'data analysis', 'business',
+    'creativity', 'figma', 'user research'
+  ];
+}
+
+function detectKeywords(text, keywords, maxResults = 5) {
+  const normalizedText = text.toLowerCase();
+  const counts = keywords.map(keyword => {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const regex = new RegExp(`\\b${escaped}\\b`, "gi");
+    const matches = normalizedText.match(regex);
+    return { keyword, count: matches ? matches.length : 0 };
+  });
+  return counts
+    .filter(item => item.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, maxResults)
+    .map(item => item.keyword);
+}
+
+async function extractTextFromFile(file) {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (ext === '.pdf') {
+    const data = await pdfParse(file.buffer);
+    return data.text || '';
+  }
+  if (ext === '.docx') {
+    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    return result.value || '';
+  }
+  if (ext === '.txt') {
+    return file.buffer.toString('utf8');
+  }
+  return '';
+}
 
 // ========== FUZZY MATCHING ==========
 function isSkillMatch(userSkill, requiredSkill) {
@@ -63,7 +117,7 @@ function findMatchingSkills(userSkills, requiredSkills) {
   return { matched, missing };
 }
 
-// ========== WEIGHTED AI MATCHING ENGINE (ALSO RETURNS CAREER ID) ==========
+// ========== WEIGHTED AI MATCHING ENGINE ==========
 function getCareerMatches(profile, careers) {
   let userSkillsList = [], userSkillsMap = new Map();
   if (profile.skills.length && typeof profile.skills[0] === 'object') {
@@ -111,11 +165,132 @@ function getCareerMatches(profile, careers) {
       missingSkills: missing,
       completion,
       reasoning,
-      id: career.id   // ✅ included for adaptability endpoint
+      id: career.id
     };
   });
   return results.sort((a, b) => b.score - a.score);
 }
+
+// ========== ML FEATURE BUILDER ==========
+async function buildMLFeatures(userId, profile, userSkills, userInterests) {
+  const allSkills = [
+    'excel', 'sql', 'python', 'statistics',
+    'javascript', 'react', 'node', 'problem_solving',
+    'networking', 'security', 'linux',
+    'communication', 'analysis', 'business',
+    'design', 'creativity', 'figma', 'user_research'
+  ];
+  const features = {};
+  const normalizedUserSkills = Array.isArray(userSkills) ? userSkills.map(s => ({
+    name: normalize(typeof s === 'string' ? s : s.name || ''),
+    proficiency: typeof s === 'object' ? (s.proficiency || 3) : 3
+  })) : [];
+
+  for (const skill of allSkills) {
+    const found = normalizedUserSkills.find(s => s.name === skill);
+    features[`skill_${skill}`] = found ? found.proficiency : 0;
+  }
+
+  const allInterests = ["technology", "business", "science", "design", "healthcare", "education", "finance", "creative arts", "engineering"];
+  for (const interest of allInterests) {
+    features[`interest_${interest}`] = userInterests.includes(interest) ? 1 : 0;
+  }
+
+  const stage = profile.career_stage || profile.careerStage || "student";
+  features.stage_student = stage === "student" ? 1 : 0;
+  features.stage_recent_graduate = stage === "recent_graduate" ? 1 : 0;
+  features.stage_career_switcher = stage === "career_switcher" ? 1 : 0;
+
+  return features;
+}
+
+// ========== HELPER: FETCH USER PROFILE WITH SKILLS (for chatbot) ==========
+async function getUserProfile(userId) {
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("interest, career_stage")
+    .eq("id", userId)
+    .single();
+  if (profileError && profileError.code !== "PGRST116") throw profileError;
+
+  const { data: skills, error: skillsError } = await supabase
+    .from("user_skills")
+    .select("skill_name, proficiency")
+    .eq("user_id", userId);
+  if (skillsError) throw skillsError;
+
+  const userSkills = (skills || []).map(s => ({
+    name: s.skill_name,
+    proficiency: s.proficiency || 3
+  }));
+
+  return {
+    skills: userSkills,
+    interest: profile?.interest || "",
+    careerStage: profile?.career_stage || "student",
+    userId
+  };
+}
+
+// ========== ENHANCED CHATBOT WITH CAREER CONTEXT (supports ANY career) ==========
+app.post("/api/chat", async (req, res) => {
+  const { message, userId, careerName } = req.body;
+  if (!message) return res.status(400).json({ error: "No message provided" });
+
+  try {
+    let contextPrompt = "";
+    let systemInstruction = `You are a career guidance assistant. Answer only career, job, skill, education, and professional development questions. Keep answers concise (2-3 sentences).`;
+
+    if (userId) {
+      try {
+        const profile = await getUserProfile(userId);
+        const allCareers = await fetchCareersFromDB();
+        const topMatches = getCareerMatches(profile, allCareers).slice(0, 3);
+
+        // If a specific career is provided, find its missing skills for that user
+        let specificCareerAdvice = "";
+        if (careerName) {
+          const targetCareer = allCareers.find(c => c.name.toLowerCase() === careerName.toLowerCase());
+          if (targetCareer) {
+            const matchResult = getCareerMatches(profile, [targetCareer])[0];
+            specificCareerAdvice = ` The user is asking about ${targetCareer.name}. Their missing skills for this career are: ${matchResult?.missingSkills.join(", ") || "none"}. Suggest which skill to learn next to improve their match for ${targetCareer.name}.`;
+          }
+        }
+
+        contextPrompt = `\n\nUser context:
+- Skills: ${profile.skills.map(s => `${s.name} (proficiency ${s.proficiency}/5)`).join(", ") || "none"}
+- Career interest: ${profile.interest || "not specified"}
+- Career stage: ${profile.careerStage}
+
+Top career matches based on user skills:
+${topMatches.map((match, idx) => 
+  `${idx+1}. ${match.name} (${match.score}% match) - Missing skills: ${match.missingSkills.slice(0,3).join(", ") || "none"}`
+).join("\n")}
+${specificCareerAdvice}
+
+Use this information to give personalized advice. Always mention the user's specific skills and suggest concrete next steps.`;
+
+        systemInstruction += contextPrompt;
+      } catch (err) {
+        console.error("Failed to fetch user context for chat:", err.message);
+      }
+    } else if (careerName) {
+      // If no userId but careerName is provided, still give generic career advice
+      systemInstruction += `\nThe user is asking about the career: ${careerName}. Focus your answer specifically on that career path.`;
+    }
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: message }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 250 },
+      systemInstruction: { parts: [{ text: systemInstruction }] }
+    });
+    const reply = result.response.text();
+    res.json({ reply });
+  } catch (error) {
+    console.error("Chat error:", error);
+    res.status(500).json({ error: "AI service unavailable" });
+  }
+});
 
 // ========== PUBLIC ENDPOINTS ==========
 app.post("/api/jobs", async (req, res) => {
@@ -128,7 +303,6 @@ app.post("/api/jobs", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Personalised roadmap (reorders based on user's existing proficiency)
 app.post("/api/roadmap", async (req, res) => {
   const { careerName, userSkills } = req.body;
   if (!careerName) return res.status(400).json({ error: "Career name required" });
@@ -145,7 +319,6 @@ app.post("/api/roadmap", async (req, res) => {
       else if (item.period === "mediumTerm") roadmap.mediumTerm.push(item);
       else if (item.period === "longTerm") roadmap.longTerm.push(item);
     });
-    // Personalisation: reorder based on user's proficiency (higher first)
     if (userSkills && Array.isArray(userSkills)) {
       const userSkillMap = new Map();
       userSkills.forEach(s => userSkillMap.set(s.name.toLowerCase(), s.proficiency || 3));
@@ -164,31 +337,120 @@ app.post("/api/roadmap", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/upload-cv', upload.single('cv'), async (req, res) => {
+  const userId = req.body.userId;
+  if (!req.file || !userId) return res.status(400).json({ error: 'CV file and userId are required' });
+
+  try {
+    const rawText = await extractTextFromFile(req.file);
+    if (!rawText || rawText.trim().length === 0) {
+      return res.status(400).json({ error: 'Unable to extract text from the CV. Please upload a valid PDF, DOCX, or TXT file.' });
+    }
+
+    const skillKeywords = await getSkillKeywordList();
+    const detectedSkills = detectKeywords(rawText, skillKeywords, 8);
+    const interestKeywords = ["data", "design", "business", "technology", "healthcare", "education", "finance", "engineering", "creative", "management", "analytics"];
+    const detectedInterests = detectKeywords(rawText, interestKeywords, 5);
+
+    res.json({ detectedSkills, detectedInterests });
+  } catch (err) {
+    console.error('CV upload error:', err.message || err);
+    res.status(500).json({ error: 'Failed to process CV upload' });
+  }
+});
+
+app.post('/api/confirm-cv', async (req, res) => {
+  const { userId, email, skills, interests } = req.body;
+  if (!userId || !Array.isArray(skills)) {
+    return res.status(400).json({ error: 'Missing userId or skills to confirm' });
+  }
+
+  try {
+    let { data: existingProfile, error: userIdError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!existingProfile && email) {
+      const { data: profileByEmail, error: emailError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      if (!emailError && profileByEmail) {
+        existingProfile = profileByEmail;
+      }
+    }
+
+    if (!existingProfile) {
+      console.warn(`Profile lookup failed: userId=${userId}, email=${email}`);
+      return res.status(400).json({ error: 'Profile not found. Please complete onboarding before uploading CV.' });
+    }
+
+    const actualUserId = existingProfile.id;
+
+    if (Array.isArray(interests) && interests.length > 0) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ interest: interests[0] })
+        .eq('id', actualUserId);
+      if (profileError) throw profileError;
+    }
+
+    const { data: existingSkills } = await supabase
+      .from('user_skills')
+      .select('skill_name')
+      .eq('user_id', actualUserId);
+
+    const existingNames = new Set((existingSkills || []).map(s => normalize(s.skill_name)));
+    const newSkills = skills
+      .map(skill => typeof skill === 'string' ? normalize(skill) : '')
+      .filter(Boolean)
+      .filter(skill => !existingNames.has(skill))
+      .map(skill => ({ user_id: actualUserId, skill_name: skill, proficiency: 3 }));
+
+    if (newSkills.length > 0) {
+      const { error: insertError } = await supabase.from('user_skills').insert(newSkills);
+      if (insertError) throw insertError;
+    }
+
+    res.json({ success: true, detectedSkills: skills, detectedInterests: interests, addedSkills: newSkills.map(s => s.skill_name) });
+  } catch (err) {
+    console.error('CV confirmation error:', err.message || err);
+    res.status(500).json({ error: err.message || 'Failed to save CV detection results' });
+  }
+});
+
 app.post("/ai/match", async (req, res) => {
   const profile = req.body;
-  if (!profile || !profile.skills || !profile.interest) return res.status(400).json({ error: "Missing profile data" });
+  if (!profile || !profile.skills || !profile.interest) {
+    return res.status(400).json({ error: "Missing profile data" });
+  }
   try {
     const careers = await fetchCareersFromDB();
-    const results = getCareerMatches(profile, careers);
-    res.json(results);
-  } catch (err) { res.json([]); }
+    const ruleMatches = getCareerMatches(profile, careers);
+    let mlPrediction = null;
+    const careerStage = profile.career_stage || profile.careerStage;
+    if (profile.userId && careerStage) {
+      try {
+        console.log(`Calling ML API for user ${profile.userId} with stage ${careerStage}`);
+        const userInterestList = profile.interest ? 
+          (Array.isArray(profile.interest) ? profile.interest : profile.interest.split(',').map(s => s.trim())) : [];
+        const features = await buildMLFeatures(profile.userId, profile, profile.skills, userInterestList);
+        const mlRes = await axios.post('http://localhost:8001/predict', { features });
+        mlPrediction = mlRes.data;
+      } catch (err) {
+        console.error("ML API error:", err.message);
+      }
+    }
+    res.json({ matches: ruleMatches, mlPrediction });
+  } catch (err) {
+    console.error(err);
+    res.json({ error: err.message });
+  }
 });
 
-app.post("/api/chat", async (req, res) => {
-  const { message } = req.body;
-  if (!message) return res.status(400).json({ error: "No message provided" });
-  try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: message }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 200 },
-      systemInstruction: { parts: [{ text: "You are a career guidance assistant. Answer only career, job, skill, education, and professional development questions. Keep answers concise (2-3 sentences)." }] }
-    });
-    const reply = result.response.text();
-    res.json({ reply });
-  } catch (error) { res.status(500).json({ error: "AI service unavailable" }); }
-});
-
-// ========== CAREER ADAPTABILITY SCORE ==========
 app.post("/api/adaptability", async (req, res) => {
   const { careerId } = req.body;
   if (!careerId) return res.status(400).json({ error: "Career ID required" });
@@ -212,6 +474,55 @@ app.post("/api/adaptability", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get("/api/progress/:careerKey", async (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const { careerKey } = req.params;
+  const period = req.query.period;
+  let query = supabase
+    .from("learning_progress")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("career_key", careerKey);
+  if (period) query = query.eq("period", period);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post("/api/progress", async (req, res) => {
+  const { userId, careerKey, period, skillName, status } = req.body;
+  if (!userId || !careerKey || !period || !skillName) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  const { data, error } = await supabase
+    .from("learning_progress")
+    .upsert({
+      user_id: userId,
+      career_key: careerKey,
+      period: period,
+      skill_name: skillName,
+      status: status,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id, career_key, period, skill_name" })
+    .select();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data[0]);
+});
+
+app.get("/api/progress/summary/:careerKey", async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const { careerKey } = req.params;
+  const { data, error } = await supabase
+    .from("learning_progress")
+    .select("period, status")
+    .eq("user_id", userId)
+    .eq("career_key", careerKey);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // ========== ADMIN MIDDLEWARE ==========
 const requireAdmin = async (req, res, next) => {
   const userId = req.headers["x-user-id"];
@@ -225,17 +536,17 @@ const requireAdmin = async (req, res, next) => {
   next();
 };
 
-// ========== ADMIN CRUD for CAREERS ==========
 app.get("/api/admin/careers", requireAdmin, async (req, res) => {
   try { const careers = await fetchCareersFromDB(); res.json(careers); } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.post("/api/admin/careers", requireAdmin, async (req, res) => {
-  const { name, description, interest, requiredSkills } = req.body;
+  const { name, description, interest, requiredSkills, salary_min, salary_max, certifications, tools } = req.body;
   if (!name || !interest) return res.status(400).json({ error: "Name and interest are required" });
   try {
     const { data: career, error: careerError } = await supabase
       .from("careers")
-      .insert([{ name, description, interest }])
+      .insert([{ name, description, interest, salary_min, salary_max, certifications, tools }])
       .select()
       .single();
     if (careerError) throw careerError;
@@ -247,11 +558,15 @@ app.post("/api/admin/careers", requireAdmin, async (req, res) => {
     res.status(201).json(career);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.put("/api/admin/careers/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, description, interest, requiredSkills } = req.body;
+  const { name, description, interest, requiredSkills, salary_min, salary_max, certifications, tools } = req.body;
   try {
-    await supabase.from("careers").update({ name, description, interest }).eq("id", id);
+    await supabase
+      .from("careers")
+      .update({ name, description, interest, salary_min, salary_max, certifications, tools })
+      .eq("id", id);
     await supabase.from("career_skills").delete().eq("career_id", id);
     if (requiredSkills && requiredSkills.length) {
       const skillsData = requiredSkills.map(skill => ({ career_id: id, skill_name: skill.toLowerCase().trim(), weight: 3 }));
@@ -260,12 +575,12 @@ app.put("/api/admin/careers/:id", requireAdmin, async (req, res) => {
     res.json({ message: "Career updated" });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.delete("/api/admin/careers/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
   try { await supabase.from("careers").delete().eq("id", id); res.json({ message: "Career deleted" }); } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ========== OTHER ADMIN CRUD (jobs, learning paths) ==========
 app.get("/api/admin/jobs", requireAdmin, async (req, res) => {
   const { data, error } = await supabase.from("jobs").select("*").order("id");
   if (error) return res.status(500).json({ error: error.message });
@@ -290,7 +605,6 @@ app.delete("/api/admin/jobs/:id", requireAdmin, async (req, res) => {
   res.status(204).send();
 });
 
-// ========== ADMIN CRUD for LEARNING PATHS ==========
 app.get("/api/admin/learning-paths", requireAdmin, async (req, res) => {
   const { data, error } = await supabase.from("learning_paths").select("*").order("id");
   if (error) return res.status(500).json({ error: error.message });
@@ -372,7 +686,6 @@ app.post('/api/admin/scrape-jobs', requireAdmin, async (req, res) => {
   try { const result = await scrapeJobs(); res.json({ message: 'Scrape completed', result }); } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// ========== DELETE AUTH USER ==========
 app.post('/api/admin/delete-user', requireAdmin, async (req, res) => {
   const { userId } = req.body;
   if (!userId || userId !== req.headers['x-user-id']) return res.status(403).json({ error: 'Unauthorized' });
@@ -389,6 +702,7 @@ const port = process.env.PORT || 5000;
 app.listen(port, () => {
   console.log(`AI Server running on port ${port}`);
   console.log("Fuzzy matching enabled | Weighted skill importance active");
-  console.log("Gemini AI chatbot active | Learning paths personalisation ready");
+  console.log("Gemini AI chatbot active with career context");
   console.log("Job scraper active (daily at 2 AM) | Career adaptability endpoint added");
+  console.log("Learning progress tracking endpoints active");
 });

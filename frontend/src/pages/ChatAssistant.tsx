@@ -7,7 +7,11 @@ interface Message {
   text: string;
 }
 
-function ChatAssistant() {
+interface ChatAssistantProps {
+  careerName?: string; // Optional: current career page context
+}
+
+function ChatAssistant({ careerName }: ChatAssistantProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -25,11 +29,17 @@ function ChatAssistant() {
     const userMsg: Message = { role: "user", text: input };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
+
+    // Build payload with user context
+    const payload: any = { message: input };
+    if (user?.id) payload.userId = user.id;
+    if (careerName) payload.careerName = careerName;
+
     try {
       const res = await fetch("http://localhost:5000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       const botMsg: Message = { role: "bot", text: data.reply || "Sorry, I couldn't process that." };
@@ -48,6 +58,7 @@ function ChatAssistant() {
       <div className="chat-header">
         <h1>Career Assistant (AI)</h1>
         <p>Ask me anything about careers, skills, job search, or learning paths.</p>
+        {user && <p className="text-sm text-gray-600">✓ Personalized to your skills and interests</p>}
       </div>
 
       <div className="chat-messages-container">
@@ -60,6 +71,11 @@ function ChatAssistant() {
               <li>How do I become a Software Engineer?</li>
               <li>What skills are needed for Cybersecurity?</li>
             </ul>
+            {user && (
+              <p className="text-sm text-blue-600 mt-2">
+                💡 I know your skills and can suggest what to learn next for your target career.
+              </p>
+            )}
           </div>
         )}
         {messages.map((msg, idx) => (

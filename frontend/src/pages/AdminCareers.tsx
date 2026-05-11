@@ -7,11 +7,17 @@ interface Career {
   description: string;
   interest: string;
   requiredSkills: string[];
+  salary_min?: number;
+  salary_max?: number;
+  certifications?: string[];
+  tools?: string[];
 }
 
-// Extended form type to include temporary skillInput
+// Extended form type to include temporary inputs
 interface CareerForm extends Partial<Career> {
   skillInput?: string;
+  certInput?: string;
+  toolInput?: string;
 }
 
 function AdminCareers() {
@@ -19,7 +25,7 @@ function AdminCareers() {
   const [careers, setCareers] = useState<Career[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Career | null>(null);
-  const [form, setForm] = useState<CareerForm>({ requiredSkills: [], skillInput: "" });
+  const [form, setForm] = useState<CareerForm>({ requiredSkills: [], certifications: [], tools: [], skillInput: "", certInput: "", toolInput: "" });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -57,6 +63,10 @@ function AdminCareers() {
         description: form.description || "",
         interest: form.interest,
         requiredSkills: form.requiredSkills || [],
+        salary_min: form.salary_min,
+        salary_max: form.salary_max,
+        certifications: form.certifications || [],
+        tools: form.tools || [],
       };
       const res = await fetch(url, {
         method,
@@ -70,7 +80,7 @@ function AdminCareers() {
       setMessage(editing ? "Career updated" : "Career added");
       fetchCareers();
       setEditing(null);
-      setForm({ requiredSkills: [], skillInput: "" });
+      setForm({ requiredSkills: [], certifications: [], tools: [], skillInput: "", certInput: "", toolInput: "" });
     } catch (err: any) {
       setMessage(err.message);
     } finally {
@@ -117,6 +127,50 @@ function AdminCareers() {
     });
   };
 
+  const addCertification = () => {
+    const cert = form.certInput?.trim();
+    if (!cert) return;
+    const current = form.certifications || [];
+    if (current.includes(cert)) {
+      setMessage("Certification already added");
+      return;
+    }
+    setForm({
+      ...form,
+      certifications: [...current, cert],
+      certInput: "",
+    });
+  };
+
+  const removeCertification = (certToRemove: string) => {
+    setForm({
+      ...form,
+      certifications: (form.certifications || []).filter(c => c !== certToRemove),
+    });
+  };
+
+  const addTool = () => {
+    const tool = form.toolInput?.trim();
+    if (!tool) return;
+    const current = form.tools || [];
+    if (current.includes(tool)) {
+      setMessage("Tool already added");
+      return;
+    }
+    setForm({
+      ...form,
+      tools: [...current, tool],
+      toolInput: "",
+    });
+  };
+
+  const removeTool = (toolToRemove: string) => {
+    setForm({
+      ...form,
+      tools: (form.tools || []).filter(t => t !== toolToRemove),
+    });
+  };
+
   useEffect(() => {
     fetchCareers();
   }, [user]);
@@ -130,7 +184,7 @@ function AdminCareers() {
         <button
           onClick={() => {
             setEditing(null);
-            setForm({ requiredSkills: [], skillInput: "" });
+            setForm({ requiredSkills: [], certifications: [], tools: [], skillInput: "", certInput: "", toolInput: "" });
           }}
           className="add-btn"
         >
@@ -162,6 +216,27 @@ function AdminCareers() {
             <option value="business">Business</option>
             <option value="science">Science</option>
           </select>
+
+          {/* Salary Range */}
+          <div className="salary-inputs">
+            <label>Salary Range (optional)</label>
+            <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+              <input
+                type="number"
+                placeholder="Min"
+                value={form.salary_min ?? ""}
+                onChange={(e) => setForm({ ...form, salary_min: e.target.value ? parseInt(e.target.value) : undefined })}
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={form.salary_max ?? ""}
+                onChange={(e) => setForm({ ...form, salary_max: e.target.value ? parseInt(e.target.value) : undefined })}
+              />
+            </div>
+          </div>
+
+          {/* Required Skills */}
           <div className="skills-editor">
             <label>Required Skills</label>
             <div className="skill-input-group">
@@ -182,6 +257,51 @@ function AdminCareers() {
               ))}
             </div>
           </div>
+
+          {/* Certifications */}
+          <div className="list-editor">
+            <label>Certifications (optional)</label>
+            <div className="skill-input-group">
+              <input
+                type="text"
+                placeholder="e.g., AWS Certified, PMP"
+                value={form.certInput || ""}
+                onChange={(e) => setForm({ ...form, certInput: e.target.value })}
+              />
+              <button type="button" onClick={addCertification}>Add</button>
+            </div>
+            <div className="skill-tags">
+              {(form.certifications || []).map(cert => (
+                <span key={cert} className="skill-tag">
+                  {cert}
+                  <button type="button" onClick={() => removeCertification(cert)}>✕</button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Common Tools */}
+          <div className="list-editor">
+            <label>Common Tools (optional)</label>
+            <div className="skill-input-group">
+              <input
+                type="text"
+                placeholder="e.g., Docker, Kubernetes, Figma"
+                value={form.toolInput || ""}
+                onChange={(e) => setForm({ ...form, toolInput: e.target.value })}
+              />
+              <button type="button" onClick={addTool}>Add</button>
+            </div>
+            <div className="skill-tags">
+              {(form.tools || []).map(tool => (
+                <span key={tool} className="skill-tag">
+                  {tool}
+                  <button type="button" onClick={() => removeTool(tool)}>✕</button>
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="form-buttons">
             <button onClick={handleSave} disabled={saving}>
               {saving ? "Saving..." : "Save"}
@@ -209,7 +329,7 @@ function AdminCareers() {
                 {(career.requiredSkills || []).join(", ")}
               </td>
               <td>
-                <button onClick={() => { setEditing(career); setForm({ ...career, skillInput: "" }); }}>
+                <button onClick={() => { setEditing(career); setForm({ ...career, skillInput: "", certInput: "", toolInput: "" }); }}>
                   Edit
                 </button>
                 <button onClick={() => handleDelete(career.id)}>Delete</button>

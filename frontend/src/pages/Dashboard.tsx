@@ -338,13 +338,12 @@ function Dashboard() {
         <JobListings careerName={selectedJobCareer} onClose={() => setShowJobs(false)} />
       )}
       {showEditModal && (
-        <EditProfileModal
-          user={authUser}
-          currentProfile={data}
-          onClose={() => setShowEditModal(false)}
-          onUpdate={refreshDashboard}
-        />
-      )}
+  <EditProfileModal
+    currentProfile={data}
+    onClose={() => setShowEditModal(false)}
+    onUpdate={refreshDashboard}
+  />
+)}
       {showCvModal && (
         <CVUploadModal
           userId={authUser?.id}

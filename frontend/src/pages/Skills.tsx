@@ -14,8 +14,9 @@ function Skills() {
   const [selectedProficiency, setSelectedProficiency] = useState(3);
   const [message, setMessage] = useState("");
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [skillsLoading, setSkillsLoading] = useState(true);
 
-  // Fetch user's profile to get the correct ID, then fetch skills
+  // Fetch user's profile and skills
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -23,7 +24,7 @@ function Skills() {
     }
     const fetchData = async () => {
       try {
-        // Get profile using email (same as Dashboard)
+        // Get profile using email
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("id")
@@ -36,7 +37,7 @@ function Skills() {
         }
         setProfileId(profile.id);
 
-        // Fetch user skills using profile.id
+        // Fetch user skills
         const { data: userSkillsData, error: userSkillsError } = await supabase
           .from("user_skills")
           .select("skill_name, proficiency")
@@ -51,14 +52,29 @@ function Skills() {
           .from("skills")
           .select("id, name, category");
         if (allSkillsError) throw allSkillsError;
-        if (allSkillsData) {
+        if (allSkillsData && allSkillsData.length > 0) {
           setAllSkills(allSkillsData);
+        } else {
+          // Fallback hardcoded skills if table is empty
+          setAllSkills([
+            { id: 1, name: "Python", category: "Technology" },
+            { id: 2, name: "JavaScript", category: "Technology" },
+            { id: 3, name: "React", category: "Technology" },
+            { id: 4, name: "SQL", category: "Technology" },
+            { id: 5, name: "Excel", category: "Business" },
+            { id: 6, name: "Communication", category: "Soft" },
+            { id: 7, name: "Project Management", category: "Business" },
+            { id: 8, name: "Data Analysis", category: "Science" },
+            { id: 9, name: "Leadership", category: "Soft" },
+            { id: 10, name: "Teamwork", category: "Soft" },
+          ]);
         }
       } catch (err) {
         console.error(err);
         setMessage("Error loading skills");
       } finally {
         setLoading(false);
+        setSkillsLoading(false);
       }
     };
     fetchData();
@@ -73,7 +89,6 @@ function Skills() {
       setMessage("User profile not loaded");
       return;
     }
-    // Check if already exists
     if (userSkills.some(s => s.name.toLowerCase() === selectedSkill.toLowerCase())) {
       setMessage("Skill already in your list");
       return;
@@ -191,20 +206,28 @@ function Skills() {
         <div className="add-skill-panel">
           <h2>Add New Skill</h2>
           <div className="add-skill-form">
-            <select value={selectedSkill} onChange={(e) => setSelectedSkill(e.target.value)}>
-              <option value="">-- Select a skill --</option>
-              {allSkills
-                .filter(skill => !userSkills.some(us => us.name.toLowerCase() === skill.name.toLowerCase()))
-                .map(skill => (
-                  <option key={skill.id} value={skill.name}>{skill.name} ({skill.category})</option>
-                ))}
-            </select>
-            <select value={selectedProficiency} onChange={(e) => setSelectedProficiency(parseInt(e.target.value))}>
-              {[1,2,3,4,5].map(lvl => (
-                <option key={lvl} value={lvl}>{lvl} – {lvl===1?"Beginner":lvl===5?"Expert":"Intermediate"}</option>
-              ))}
-            </select>
-            <button onClick={addSkill}>Add Skill</button>
+            {skillsLoading ? (
+              <p>Loading skills...</p>
+            ) : allSkills.length === 0 ? (
+              <p>No skills available in database. Please contact admin.</p>
+            ) : (
+              <>
+                <select value={selectedSkill} onChange={(e) => setSelectedSkill(e.target.value)}>
+                  <option value="">-- Select a skill --</option>
+                  {allSkills
+                    .filter(skill => !userSkills.some(us => us.name.toLowerCase() === skill.name.toLowerCase()))
+                    .map(skill => (
+                      <option key={skill.id} value={skill.name}>{skill.name} ({skill.category})</option>
+                    ))}
+                </select>
+                <select value={selectedProficiency} onChange={(e) => setSelectedProficiency(parseInt(e.target.value))}>
+                  {[1,2,3,4,5].map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl} – {lvl===1?"Beginner":lvl===5?"Expert":"Intermediate"}</option>
+                  ))}
+                </select>
+                <button onClick={addSkill}>Add Skill</button>
+              </>
+            )}
           </div>
           <p className="add-hint">Proficiency: 1 (low) to 5 (high)</p>
         </div>

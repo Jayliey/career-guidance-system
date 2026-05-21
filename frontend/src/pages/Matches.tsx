@@ -28,7 +28,6 @@ function Matches() {
     setShowJobs(true);
   };
 
-  // Fetch adaptability score for a career when expanded
   useEffect(() => {
     if (expanded !== null && matches[expanded]?.id && !adaptabilityScores[matches[expanded].id]) {
       const careerId = matches[expanded].id;
@@ -80,16 +79,23 @@ function Matches() {
         }
         setUserSkills(skills);
 
+        const interestValue = Array.isArray(profile.interest)
+          ? profile.interest.join(",")
+          : profile.interest || "";
+
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            interest: profile.interest,
+            interest: interestValue,
             skills: skills,
+            userId: user.id,
           }),
         });
-        const data = await res.json();
-        setMatches(data);
+        const result = await res.json();
+        const allMatches = result.matches || [];
+        // ✅ Keep only top 8 matches
+        setMatches(allMatches.slice(0, 8));
       } catch (err) {
         console.error(err);
         setError("Failed to load career matches.");
@@ -111,49 +117,53 @@ function Matches() {
       </div>
 
       <div className="matches-list">
-        {matches.map((c, idx) => (
-          <div key={idx} className="match-item">
-            <div
-              className="match-summary"
-              onClick={() => setExpanded(expanded === idx ? null : idx)}
-            >
-              <span className="match-rank">{idx + 1}.</span>
-              <span className="match-name">{c.name}</span>
-              <span className="match-percent">{c.score}% Match</span>
-              <span className="match-completion">Skills Completion: {c.completion}%</span>
-              <button className="match-toggle">{expanded === idx ? "−" : "+"}</button>
-            </div>
-            {expanded === idx && (
-              <div className="match-details">
-                <p className="match-description">{c.description}</p>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${c.completion}%` }} />
-                </div>
-                <div className="reasoning">
-                  <strong>🧠 AI Reasoning:</strong> {c.reasoning}
-                </div>
-                <div className="skill-stats">
-                  <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
-                  <p><strong>Missing Skills:</strong> {c.missingSkills?.length || 0}</p>
-                </div>
-                {adaptabilityScores[c.id] !== undefined && (
-                  <div className="adaptability-score">
-                    🔄 Transferable skills: {adaptabilityScores[c.id]}%
-                    <span className="adaptability-hint"> (versatile career)</span>
-                  </div>
-                )}
-                <div className="match-buttons">
-                  <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>
-                    🗺️ View Learning Path
-                  </button>
-                  <button className="jobs-btn" onClick={() => openJobs(c.name)}>
-                    💼 View Jobs
-                  </button>
-                </div>
+        {matches.length === 0 ? (
+          <p>No career matches found. Please update your skills and interests.</p>
+        ) : (
+          matches.map((c, idx) => (
+            <div key={idx} className="match-item">
+              <div
+                className="match-summary"
+                onClick={() => setExpanded(expanded === idx ? null : idx)}
+              >
+                <span className="match-rank">{idx + 1}.</span>
+                <span className="match-name">{c.name}</span>
+                <span className="match-percent">{c.score}% Match</span>
+                <span className="match-completion">Skills Completion: {c.completion}%</span>
+                <button className="match-toggle">{expanded === idx ? "−" : "+"}</button>
               </div>
-            )}
-          </div>
-        ))}
+              {expanded === idx && (
+                <div className="match-details">
+                  <p className="match-description">{c.description}</p>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${c.completion}%` }} />
+                  </div>
+                  <div className="reasoning">
+                    <strong>🧠 AI Reasoning:</strong> {c.reasoning}
+                  </div>
+                  <div className="skill-stats">
+                    <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
+                    <p><strong>Missing Skills:</strong> {c.missingSkills?.length || 0}</p>
+                  </div>
+                  {adaptabilityScores[c.id] !== undefined && (
+                    <div className="adaptability-score">
+                      🔄 Transferable skills: {adaptabilityScores[c.id]}%
+                      <span className="adaptability-hint"> (versatile career)</span>
+                    </div>
+                  )}
+                  <div className="match-buttons">
+                    <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>
+                      🗺️ View Learning Path
+                    </button>
+                    <button className="jobs-btn" onClick={() => openJobs(c.name)}>
+                      💼 View Jobs
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {showRoadmap && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   BarChart,
@@ -15,111 +16,83 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type CareerMatchStat = {
-  name: string;
-  value: number;
-};
-
-type SkillGap = {
-  skill: string;
-  count: number;
-};
-
-type UserGrowthPoint = {
-  month: string;
-  users: number;
-};
-
-type AnalyticsData = {
+interface AnalyticsData {
   totalUsers: number;
   totalJobs: number;
-  userGrowth: UserGrowthPoint[];
-  careerMatchesStats: CareerMatchStat[];
-  skillGaps: SkillGap[];
-};
+  userGrowth: { month: string; users: number }[];
+  careerMatchesStats: { name: string; value: number }[];
+  skillGaps: { skill: string; count: number }[];
+}
 
 function AdminAnalytics() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<AnalyticsData>({
-    totalUsers: 0,
-    totalJobs: 0,
-    userGrowth: [],
-    careerMatchesStats: [],
-    skillGaps: [],
-  });
+  const [error, setError] = useState<string | null>(null);
 
   const COLORS = ["#4f8cff", "#a855f7", "#ff8c00", "#4caf50", "#ff4d4d"];
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
     fetchAnalytics();
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchAnalytics = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch("http://localhost:5000/api/admin/analytics", {
-        headers: { "x-user-id": user.id },
+        headers: { "x-user-id": user?.id || "" },
       });
-      if (!res.ok) throw new Error("Failed to fetch analytics");
-      const result = await res.json();
-      setData(result);
-    } catch (err) {
-      console.error(err);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setData(json);
+    } catch (err: any) {
+      console.error("Analytics error:", err);
+      setError(err.message || "Failed to load analytics");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="loading">Loading analytics...</div>;
+  if (loading) return <div className="admin-analytics"><h1>Admin Dashboard</h1><div className="loading">Loading...</div></div>;
+  if (error) return <div className="admin-analytics"><h1>Admin Dashboard</h1><div className="error">{error}</div><button onClick={fetchAnalytics}>Retry</button></div>;
+  if (!data) return null;
+
+  const { totalUsers, totalJobs, userGrowth, careerMatchesStats, skillGaps } = data;
 
   return (
     <div className="admin-analytics">
-      <h1>Admin Analytics</h1>
+      <h1>Admin Dashboard</h1>
+
+      {/* Stats Cards */}
       <div className="stats-cards">
-        <div className="stat-card">
-          <h3>Total Users</h3>
-          <div className="value">{data.totalUsers}</div>
-        </div>
-        <div className="stat-card">
-          <h3>Total Jobs</h3>
-          <div className="value">{data.totalJobs}</div>
-        </div>
-        <div className="stat-card">
-          <h3>Career Matches</h3>
-          <div className="value">
-            {data.careerMatchesStats.reduce((sum: number, c: CareerMatchStat) => sum + c.value, 0)}
-          </div>
-        </div>
+        <div className="stat-card"><h3>Total Users</h3><div className="value">{totalUsers}</div></div>
+        <div className="stat-card"><h3>Total Jobs</h3><div className="value">{totalJobs}</div></div>
+        <div className="stat-card"><h3>Career Matches</h3><div className="value">{careerMatchesStats.reduce((s,c)=>s+c.value,0)}</div></div>
       </div>
 
+      {/* Charts Row */}
       <div className="chart-row">
         <div className="chart-container">
           <h2>Most Recommended Careers</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie
-                data={data.careerMatchesStats}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label
-              >
-                {data.careerMatchesStats.map((_, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
+              <Pie data={careerMatchesStats} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                {careerMatchesStats.map((_,i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
         </div>
-
         <div className="chart-container">
-          <h2>User Growth (Last 6 months)</h2>
+          <h2>User Growth (Last 6 Months)</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data.userGrowth}>
+            <LineChart data={userGrowth}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
@@ -129,11 +102,10 @@ function AdminAnalytics() {
           </ResponsiveContainer>
         </div>
       </div>
-
       <div className="chart-container full-width">
         <h2>Top Missing Skills (Skill Gaps)</h2>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data.skillGaps}>
+          <BarChart data={skillGaps}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="skill" />
             <YAxis />
@@ -141,6 +113,13 @@ function AdminAnalytics() {
             <Bar dataKey="count" fill="#4f8cff" />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Quick Action Links – at the bottom, clearly clickable */}
+      <div className="admin-quick-links">
+        <button className="admin-link-btn" onClick={() => navigate("/admin/jobs")}>📋 Manage Jobs</button>
+        <button className="admin-link-btn" onClick={() => navigate("/admin/careers")}>📚 Manage Careers</button>
+        <button className="admin-link-btn" onClick={() => navigate("/admin/learning-paths")}>🗺️ Learning Paths</button>
       </div>
     </div>
   );

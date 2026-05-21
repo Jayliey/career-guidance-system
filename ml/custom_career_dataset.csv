@@ -1,0 +1,208 @@
+skills,interests,education,career_stage,target_career
+Python:4;SQL:3;Statistics:3;Communication:2,Technology;Science,Bachelor's Degree,student,Data Scientist
+Python:5;SQL:4;Machine Learning:4;Problem Solving:3,Technology;Science,Master's Degree,recent graduate,Data Scientist
+Python:3;SQL:3;Excel:4;Communication:3,Technology;Business,Bachelor's Degree,student,Business Analyst
+JavaScript:4;React:3;Node.js:3;Problem Solving:4,Technology;Engineering,Bachelor's Degree,student,Software Engineer
+Java:4;Spring:3;SQL:3;Teamwork:3,Technology;Engineering,Master's Degree,professional,Software Engineer
+Python:4;Statistics:4;Data Visualization:3;Communication:3,Technology;Science,Bachelor's Degree,student,Data Analyst
+SQL:4;Excel:5;Business Analysis:3;Communication:4,Business;Finance,Bachelor's Degree,recent graduate,Business Analyst
+Figma:4;Adobe XD:3;UI/UX:4;Communication:3,Design;Technology,Bachelor's Degree,student,UI/UX Designer
+Graphic Design:4;Adobe Creative Suite:3;Typography:3;Creativity:4,Design;Arts,Diploma,career switcher,Graphic Designer
+AutoCAD:4;Structural Analysis:3;Project Management:3;Teamwork:3,Engineering;Technology,Bachelor's Degree,student,Civil Engineer
+Python:5;Deep Learning:4;TensorFlow:4;Research Methods:3,Technology;Science,PhD,professional,AI Researcher
+Financial Analysis:4;Excel:5;Accounting:3;Communication:3,Finance;Business,Bachelor's Degree,recent graduate,Financial Analyst
+Digital Marketing:4;SEO:3;Social Media Strategy:3;Communication:4,Marketing;Business,Bachelor's Degree,student,Digital Marketing Specialist
+Patient Care:4;Medical Terminology:3;Anatomy:3;Teamwork:4,Healthcare;Science,Diploma,student,Registered Nurse
+Curriculum Development:4;Classroom Management:3;Educational Psychology:3;Communication:4,Education;Social Sciences,Bachelor's Degree,professional,Teacher
+Python:3;SQL:3;Excel:4;Problem Solving:3,Technology;Business,Bachelor's Degree,student,Data Analyst
+JavaScript:3;React:3;HTML/CSS:4;Communication:3,Technology;Design,Bachelor's Degree,student,Front-end Developer
+Python:4;Django:3;SQL:3;Teamwork:3,Technology;Engineering,Master's Degree,recent graduate,Backend Developer
+Cybersecurity:4;Linux:3;Python:3;Problem Solving:4,Technology;Security,Bachelor's Degree,student,Cybersecurity Analyst
+Cloud Computing:4;AWS:3;Docker:3;DevOps:3,Technology;Engineering,Master's Degree,professional,Cloud Architect
+Project Management:4;Agile:3;Communication:4;Leadership:3,Business;Management,Bachelor's Degree,recent graduate,Project Manager
+Business Analysis:4;SQL:3;Excel:4;Communication:3,Business;Technology,Bachelor's Degree,student,Business Analyst
+Research Methods:4;Statistics:3;Scientific Writing:3;Communication:3,Science;Education,Master's Degree,recent graduate,Research Scientist
+Laboratory Techniques:4;Medical Terminology:3;Patient Care:3;Teamwork:3,Healthcare;Science,Diploma,student,Medical Lab Technologist
+Public Health:4;Statistics:3;Communication:3;Leadership:3,Healthcare;Education,Master's Degree,professional,Public Health Officer
+Instructional Design:4;Curriculum Development:3;Educational Technology:3;Communication:3,Education;Technology,Master's Degree,professional,Instructional Designer
+Accounting:4;Excel:5;Financial Reporting:3;Attention to Detail:4,Finance;Business,Bachelor's Degree,student,Accountant
+Investment Analysis:4;Financial Modeling:3;Risk Management:3;Communication:3,Finance;Business,Master's Degree,recent graduate,Investment Analyst
+SEO:4;Content Strategy:3;Google Analytics:3;Communication:3,Marketing;Business,Bachelor's Degree,student,SEO Specialist
+Brand Management:4;Digital Marketing:3;Market Research:3;Communication:4,Marketing;Business,Master's Degree,professional,Brand Manager
+AutoCAD:4;SolidWorks:3;Mechanical Design:3;Problem Solving:3,Engineering;Technology,Bachelor's Degree,student,Mechanical Engineer
+Quality Control:4;Statistics:3;Six Sigma:3;Attention to Detail:3,Engineering;Business,Bachelor's Degree,professional,Quality Engineer
+Python:4;SQL:3;JavaScript:3;Communication:2,Technology;Business,Bachelor's Degree,student,Data Analyst
+React:4;Node.js:3;MongoDB:3;Teamwork:3,Technology;Engineering,Bachelor's Degree,student,Full Stack Developer
+Java:4;Android Studio:3;UI/UX:3;Problem Solving:3,Technology;Design,Bachelor's Degree,recent graduate,Mobile Developer
+Python:4;NLP:3;Machine Learning:3;Research Methods:3,Technology;Science,Master's Degree,recent graduate,NLP Engineer
+DevOps:4;Docker:3;Kubernetes:3;Cloud Computing:3,Technology;Engineering,Master's Degree,professional,DevOps Engineer
+SQL:5;Data Warehousing:4;ETL:3;Business Analysis:3,Technology;Business,Bachelor's Degree,professional,Data Engineer
+Excel:5;VBA:3;Financial Analysis:3;Communication:3,Finance;Business,Bachelor's Degree,recent graduate,Financial Analyst
+Content Writing:4;SEO:3;Social Media:3;Creativity:4,Marketing;Design,Diploma,student,Content Creator
+Patient Care:5;Medical Terminology:4;Empathy:4;Teamwork:4,Healthcare;Social Sciences,Bachelor's Degree,professional,Registered Nurse
+Nursing Assistant:4;Patient Care:3;Communication:3;Teamwork:3,Healthcare;Social Sciences,Diploma,student,Nursing Assistant
+Teaching:4;Curriculum Development:3;Classroom Management:3;Communication:4,Education;Social Sciences,Bachelor's Degree,recent graduate,Teacher
+E-Learning:4;Instructional Design:3;LMS:3;Communication:3,Education;Technology,Master's Degree,professional,Instructional Designer
+Graphic Design:5;Adobe Creative Suite:4;Typography:4;Creativity:4,Design;Arts,Bachelor's Degree,professional,Senior Graphic Designer
+UI/UX:4;Figma:3;User Research:3;Communication:3,Design;Technology,Bachelor's Degree,student,UX Researcher
+AutoCAD:4;Revit:3;Construction Management:3;Teamwork:3,Engineering;Business,Bachelor's Degree,professional,Civil Engineer
+SolidWorks:4;Mechanical Engineering:3;Problem Solving:3;Teamwork:3,Engineering;Technology,Bachelor's Degree,student,Mechanical Engineer
+Python:4;Data Analysis:3;SQL:3;Communication:3,Technology;Science,Bachelor's Degree,student,Data Scientist
+R:4;Statistics:3;Data Visualization:3;Research Methods:3,Science;Technology,Master's Degree,recent graduate,Biostatistician
+JavaScript:4;React:3;Redux:3;Teamwork:3,Technology;Engineering,Bachelor's Degree,student,Front-end Developer
+Node.js:4;Express:3;MongoDB:3;Problem Solving:3,Technology;Engineering,Bachelor's Degree,recent graduate,Backend Developer
+Python:4;Flask:3;SQL:3;Communication:3,Technology;Business,Bachelor's Degree,student,Software Engineer
+Java:4;Spring Boot:3;Microservices:3;Teamwork:3,Technology;Engineering,Master's Degree,professional,Software Engineer
+C++:4;Algorithms:3;Data Structures:3;Problem Solving:4,Technology;Engineering,Bachelor's Degree,student,Software Developer
+Python:4;Machine Learning:3;Statistics:3;Problem Solving:3,Technology;Science,Master's Degree,recent graduate,Machine Learning Engineer
+Deep Learning:4;TensorFlow:3;Computer Vision:3;Research Methods:3,Technology;Science,PhD,student,AI Researcher
+Cybersecurity:4;Network Security:3;Linux:3;Problem Solving:3,Technology;Security,Bachelor's Degree,student,Security Analyst
+Penetration Testing:4;Ethical Hacking:3;Linux:3;Problem Solving:3,Technology;Security,Master's Degree,professional,Penetration Tester
+Cloud Computing:4;AWS:3;Azure:3;DevOps:3,Technology;Engineering,Bachelor's Degree,recent graduate,Cloud Engineer
+Project Management:5;Agile:4;Scrum:4;Leadership:4,Business;Management,Master's Degree,professional,Senior Project Manager
+Business Analysis:4;Requirements Gathering:3;UML:3;Communication:3,Business;Technology,Bachelor's Degree,student,Business Analyst
+Product Management:4;Market Research:3;Roadmapping:3;Communication:3,Business;Marketing,Master's Degree,professional,Product Manager
+Research Methods:5;Statistical Analysis:4;Scientific Writing:4;Critical Thinking:4,Science;Education,PhD,professional,Lead Research Scientist
+Laboratory Techniques:4;Microscopy:3;Sample Preparation:3;Attention to Detail:3,Science;Healthcare,Diploma,student,Laboratory Technician
+Medical Terminology:4;Patient Communication:3;Healthcare Administration:3;Teamwork:3,Healthcare;Business,Bachelor's Degree,recent graduate,Healthcare Administrator
+Public Health:4;Epidemiology:3;Biostatistics:3;Communication:3,Healthcare;Science,Master's Degree,professional,Public Health Specialist
+Curriculum Development:4;Instructional Design:3;Assessment Design:3;Communication:3,Education;Technology,Master's Degree,professional,Curriculum Developer
+Educational Technology:4;LMS:3;E-Learning:3;Training:3,Education;Technology,Master's Degree,professional,EdTech Specialist
+Accounting:5;Tax Preparation:4;Auditing:3;Attention to Detail:4,Finance;Business,Bachelor's Degree,professional,Senior Accountant
+Financial Analysis:4;Excel:5;Financial Modeling:3;Communication:3,Finance;Business,Bachelor's Degree,recent graduate,Financial Analyst
+Risk Management:4;Compliance:3;Auditing:3;Analytical Thinking:3,Finance;Business,Master's Degree,professional,Risk Manager
+Digital Marketing:5;PPC:4;Social Media:4;Analytics:4,Marketing;Business,Bachelor's Degree,professional,Digital Marketing Manager
+SEO:4;Content Strategy:3;Link Building:3;Analytics:3,Marketing;Business,Bachelor's Degree,student,SEO Specialist
+Brand Management:4;Market Research:3;Advertising:3;Creativity:3,Marketing;Design,Master's Degree,professional,Brand Strategist
+AutoCAD:5;Civil 3D:4;Infrastructure Design:4;Project Management:3,Engineering;Business,Bachelor's Degree,professional,Civil Engineer
+Structural Analysis:4;STAAD:3;Revit:3;Problem Solving:3,Engineering;Technology,Master's Degree,professional,Structural Engineer
+Thermodynamics:4;Fluid Mechanics:3;CAD:3;Problem Solving:3,Engineering;Science,Bachelor's Degree,student,Mechanical Engineer
+Quality Control:4;Six Sigma:3;Lean Manufacturing:3;Attention to Detail:3,Engineering;Business,Bachelor's Degree,professional,Quality Engineer
+Python:4;SQL:3;Statistics:3;Excel:3,Technology;Business,Bachelor's Degree,student,Data Analyst
+Tableau:4;Power BI:3;SQL:3;Communication:3,Technology;Business,Bachelor's Degree,recent graduate,Data Visualization Specialist
+JavaScript:4;React:3;HTML/CSS:3;Design:3,Technology;Design,Bachelor's Degree,student,Front-end Developer
+Node.js:4;Express:3;MongoDB:3;REST APIs:3,Technology;Engineering,Bachelor's Degree,student,Backend Developer
+Python:4;Django:3;PostgreSQL:3;Problem Solving:3,Technology;Engineering,Master's Degree,recent graduate,Backend Developer
+Java:4;Spring:3;Hibernate:3;Teamwork:3,Technology;Engineering,Master's Degree,professional,Software Engineer
+C#:4;.NET:3;SQL:3;Problem Solving:3,Technology;Engineering,Bachelor's Degree,student,Software Developer
+Python:4;Machine Learning:3;Pandas:3;Statistics:3,Technology;Science,Master's Degree,recent graduate,Data Scientist
+Deep Learning:4;PyTorch:3;Computer Vision:3;Research:3,Technology;Science,PhD,professional,AI Researcher
+NLP:4;Transformers:3;Python:3;Linguistics:3,Technology;Science,Master's Degree,student,NLP Engineer
+Cybersecurity:4;Firewalls:3;Incident Response:3;Problem Solving:3,Technology;Security,Bachelor's Degree,recent graduate,Security Analyst
+Penetration Testing:4;Metasploit:3;Burp Suite:3;Ethical Hacking:3,Technology;Security,Master's Degree,professional,Penetration Tester
+Cloud Security:4;AWS:3;IAM:3;Compliance:3,Technology;Security,Master's Degree,professional,Cloud Security Engineer
+DevOps:4;CI/CD:3;Jenkins:3;Docker:3,Technology;Engineering,Bachelor's Degree,student,DevOps Engineer
+Cloud Architect:4;AWS:3;Terraform:3;Kubernetes:3,Technology;Engineering,Master's Degree,professional,Cloud Architect
+Project Management:4;Scrum:3;JIRA:3;Leadership:3,Business;Management,Bachelor's Degree,student,Project Manager
+Product Management:4;Agile:3;Roadmap:3;Market Analysis:3,Business;Marketing,Master's Degree,professional,Product Manager
+Business Analysis:4;Requirements:3;UML:3;Communication:3,Business;Technology,Bachelor's Degree,recent graduate,Business Analyst
+Data Analysis:4;SQL:3;Excel:3;Business Acumen:3,Business;Technology,Bachelor's Degree,student,Business Data Analyst
+Supply Chain:4;Logistics:3;Inventory Management:3;Analytics:3,Business;Operations,Bachelor's Degree,professional,Supply Chain Analyst
+Operations Management:4;Lean:3;Six Sigma:3;Process Improvement:3,Business;Engineering,Master's Degree,professional,Operations Manager
+Research Methods:5;Statistics:5;Grant Writing:4;Communication:4,Science;Education,PhD,professional,Senior Research Scientist
+Biostatistics:4;R:3;SAS:3;Clinical Trials:3,Science;Healthcare,Master's Degree,recent graduate,Biostatistician
+Data Science:4;Python:3;Machine Learning:3;Scientific Writing:3,Science;Technology,Master's Degree,student,Data Scientist
+Medical Research:4;Clinical Data:3;Regulatory Compliance:3;Attention to Detail:3,Healthcare;Science,Master's Degree,professional,Clinical Research Coordinator
+Nursing:4;Patient Care:3;Medical Terminology:3;Empathy:3,Healthcare;Social Sciences,Bachelor's Degree,recent graduate,Registered Nurse
+Public Health:4;Health Promotion:3;Community Outreach:3;Communication:3,Healthcare;Education,Master's Degree,professional,Public Health Officer
+Healthcare Administration:4;Hospital Operations:3;Regulatory:3;Leadership:3,Healthcare;Business,Master's Degree,professional,Healthcare Administrator
+Teaching:4;Lesson Planning:3;Classroom Management:3;Communication:3,Education;Social Sciences,Bachelor's Degree,student,Teacher
+Special Education:4;IEP Development:3;Behavior Management:3;Empathy:3,Education;Social Sciences,Master's Degree,professional,Special Education Teacher
+Educational Psychology:4;Child Development:3;Assessment:3;Counseling:3,Education;Psychology,Master's Degree,professional,School Psychologist
+Instructional Design:4;E-Learning:3;Articulate:3;Training:3,Education;Technology,Master's Degree,professional,Instructional Designer
+Financial Planning:4;Investment:3;Retirement Planning:3;Communication:3,Finance;Business,Bachelor's Degree,professional,Financial Planner
+Accounting:4;QuickBooks:3;Tax:3;Attention to Detail:3,Finance;Business,Bachelor's Degree,student,Accountant
+Auditing:4;Internal Controls:3;Risk Assessment:3;Analytical:3,Finance;Business,Master's Degree,professional,Internal Auditor
+Investment Banking:4;Financial Modeling:3;Valuation:3;Excel:3,Finance;Business,Master's Degree,recent graduate,Investment Banker
+Digital Marketing:4;SEO:3;Google Ads:3;Analytics:3,Marketing;Business,Bachelor's Degree,student,Digital Marketing Specialist
+Social Media Management:4;Content Creation:3;Community Management:3;Analytics:3,Marketing;Design,Bachelor's Degree,recent graduate,Social Media Manager
+Content Marketing:4;Copywriting:3;SEO:3;Storytelling:3,Marketing;Design,Bachelor's Degree,student,Content Marketer
+Brand Strategy:4;Market Research:3;Positioning:3;Creative:3,Marketing;Design,Master's Degree,professional,Brand Strategist
+AutoCAD:4;Revit:3;Construction:3;Project Management:3,Engineering;Business,Bachelor's Degree,student,Civil Engineer
+Structural Design:4;STAAD:3;ETABS:3;Problem Solving:3,Engineering;Technology,Master's Degree,professional,Structural Engineer
+Mechanical Design:4;SolidWorks:3;FEA:3;Problem Solving:3,Engineering;Technology,Bachelor's Degree,student,Mechanical Engineer
+Electrical Engineering:4;Circuit Design:3;PLC:3;Problem Solving:3,Engineering;Technology,Bachelor's Degree,recent graduate,Electrical Engineer
+Quality Assurance:4;Testing:3;Selenium:3;Attention to Detail:3,Engineering;Technology,Bachelor's Degree,student,QA Engineer
+Manufacturing Engineering:4;Lean:3;Six Sigma:3;Process Optimization:3,Engineering;Operations,Master's Degree,professional,Manufacturing Engineer
+Data Analyst:4;SQL:3;Excel:3;Tableau:3,Technology;Business,Bachelor's Degree,student,Data Analyst
+Data Scientist:4;Python:3;Machine Learning:3;Statistics:3,Technology;Science,Master's Degree,recent graduate,Data Scientist
+Software Engineer:4;Java:3;Spring:3;SQL:3,Technology;Engineering,Bachelor's Degree,student,Software Engineer
+Front-end Developer:4;React:3;JavaScript:3;CSS:3,Technology;Design,Bachelor's Degree,student,Front-end Developer
+Backend Developer:4;Node.js:3;Express:3;MongoDB:3,Technology;Engineering,Bachelor's Degree,recent graduate,Backend Developer
+Full Stack Developer:4;React:3;Node.js:3;MongoDB:3,Technology;Engineering,Bachelor's Degree,student,Full Stack Developer
+Mobile Developer:4;Kotlin:3;Android:3;Java:3,Technology;Design,Bachelor's Degree,recent graduate,Mobile Developer
+DevOps Engineer:4;Docker:3;Kubernetes:3;CI/CD:3,Technology;Engineering,Master's Degree,professional,DevOps Engineer
+Cloud Engineer:4;AWS:3;Terraform:3;Linux:3,Technology;Engineering,Bachelor's Degree,professional,Cloud Engineer
+Security Analyst:4;Cybersecurity:3;Network Security:3;Linux:3,Technology;Security,Bachelor's Degree,student,Security Analyst
+Penetration Tester:4;Ethical Hacking:3;Metasploit:3;Python:3,Technology;Security,Master's Degree,professional,Penetration Tester
+Data Engineer:4;Python:3;SQL:3;ETL:3,Technology;Business,Bachelor's Degree,recent graduate,Data Engineer
+ML Engineer:4;Python:3;TensorFlow:3;MLOps:3,Technology;Science,Master's Degree,professional,ML Engineer
+AI Researcher:4;Deep Learning:3;PyTorch:3;Research:3,Technology;Science,PhD,professional,AI Researcher
+Business Analyst:4;SQL:3;Excel:3;Communication:3,Business;Technology,Bachelor's Degree,student,Business Analyst
+Project Manager:4;Agile:3;Scrum:3;Leadership:3,Business;Management,Bachelor's Degree,recent graduate,Project Manager
+Product Manager:4;Roadmap:3;Market Research:3;Communication:3,Business;Marketing,Master's Degree,professional,Product Manager
+Financial Analyst:4;Excel:3;Financial Modeling:3;Accounting:3,Finance;Business,Bachelor's Degree,student,Financial Analyst
+Investment Analyst:4;Financial Analysis:3;Valuation:3;Bloomberg:3,Finance;Business,Master's Degree,recent graduate,Investment Analyst
+Accountant:4;QuickBooks:3;Tax:3;Attention to Detail:3,Finance;Business,Bachelor's Degree,student,Accountant
+Marketing Specialist:4;Digital Marketing:3;SEO:3;Google Ads:3,Marketing;Business,Bachelor's Degree,student,Marketing Specialist
+SEO Specialist:4;SEO:3;Content Strategy:3;Analytics:3,Marketing;Business,Bachelor's Degree,student,SEO Specialist
+Social Media Manager:4;Social Media:3;Content Creation:3;Analytics:3,Marketing;Design,Bachelor's Degree,recent graduate,Social Media Manager
+Brand Manager:4;Brand Strategy:3;Market Research:3;Communication:3,Marketing;Design,Master's Degree,professional,Brand Manager
+Graphic Designer:4;Adobe Creative Suite:3;Typography:3;Creativity:3,Design;Arts,Diploma,student,Graphic Designer
+UI/UX Designer:4;Figma:3;User Research:3;Prototyping:3,Design;Technology,Bachelor's Degree,student,UI/UX Designer
+Product Designer:4;Figma:3;User Research:3;Prototyping:3,Design;Technology,Bachelor's Degree,recent graduate,Product Designer
+UX Researcher:4;User Research:3;Usability Testing:3;Data Analysis:3,Design;Technology,Master's Degree,professional,UX Researcher
+Civil Engineer:4;AutoCAD:3;Structural Analysis:3;Project Management:3,Engineering;Business,Bachelor's Degree,student,Civil Engineer
+Mechanical Engineer:4;SolidWorks:3;Thermodynamics:3;CAD:3,Engineering;Technology,Bachelor's Degree,student,Mechanical Engineer
+Electrical Engineer:4;Circuit Design:3;PLC:3;Problem Solving:3,Engineering;Technology,Bachelor's Degree,recent graduate,Electrical Engineer
+Quality Engineer:4;Six Sigma:3;Lean:3;Statistics:3,Engineering;Business,Bachelor's Degree,student,Quality Engineer
+Manufacturing Engineer:4;Lean Manufacturing:3;Process Improvement:3;CAD:3,Engineering;Business,Master's Degree,professional,Manufacturing Engineer
+Teacher:4;Lesson Planning:3;Classroom Management:3;Communication:3,Education;Social Sciences,Bachelor's Degree,student,Teacher
+Special Education Teacher:4;IEP:3;Behavior Management:3;Empathy:3,Education;Social Sciences,Master's Degree,professional,Special Education Teacher
+Instructional Designer:4;E-Learning:3;Articulate:3;LMS:3,Education;Technology,Master's Degree,professional,Instructional Designer
+Curriculum Developer:4;Curriculum Design:3;Assessment:3;Educational Technology:3,Education;Technology,Master's Degree,professional,Curriculum Developer
+Registered Nurse:4;Patient Care:3;Medical Terminology:3;Teamwork:3,Healthcare;Social Sciences,Bachelor's Degree,student,Registered Nurse
+Nurse Practitioner:4;Advanced Patient Care:3;Diagnosis:3;Prescribing:3,Healthcare;Science,Master's Degree,professional,Nurse Practitioner
+Medical Lab Technician:4;Lab Techniques:3;Microscopy:3;Attention to Detail:3,Healthcare;Science,Diploma,student,Medical Lab Technician
+Public Health Officer:4;Epidemiology:3;Biostatistics:3;Health Promotion:3,Healthcare;Education,Master's Degree,professional,Public Health Officer
+Healthcare Administrator:4;Hospital Operations:3;Regulatory:3;Leadership:3,Healthcare;Business,Master's Degree,professional,Healthcare Administrator
+Data Analyst:4;SQL:3;Excel:3;Python:3,Technology;Business,Bachelor's Degree,student,Data Analyst
+Data Scientist:4;Python:3;Machine Learning:3;Statistics:3,Technology;Science,Master's Degree,recent graduate,Data Scientist
+Software Engineer:4;Java:3;Spring:3;SQL:3,Technology;Engineering,Bachelor's Degree,student,Software Engineer
+Web Developer:4;HTML:3;CSS:3;JavaScript:3,Technology;Design,Bachelor's Degree,student,Web Developer
+Mobile Developer:4;Kotlin:3;Android:3;Java:3,Technology;Design,Bachelor's Degree,recent graduate,Mobile Developer
+DevOps Engineer:4;Docker:3;Kubernetes:3;CI/CD:3,Technology;Engineering,Master's Degree,professional,DevOps Engineer
+Cloud Architect:4;AWS:3;Terraform:3;Kubernetes:3,Technology;Engineering,Master's Degree,professional,Cloud Architect
+Security Analyst:4;Cybersecurity:3;Network Security:3;Linux:3,Technology;Security,Bachelor's Degree,student,Security Analyst
+Penetration Tester:4;Ethical Hacking:3;Metasploit:3;Python:3,Technology;Security,Master's Degree,professional,Penetration Tester
+Data Engineer:4;Python:3;SQL:3;ETL:3,Technology;Business,Bachelor's Degree,recent graduate,Data Engineer
+ML Engineer:4;Python:3;TensorFlow:3;MLOps:3,Technology;Science,Master's Degree,professional,ML Engineer
+AI Researcher:4;Deep Learning:3;PyTorch:3;Research:3,Technology;Science,PhD,professional,AI Researcher
+Business Analyst:4;SQL:3;Excel:3;Communication:3,Business;Technology,Bachelor's Degree,student,Business Analyst
+Project Manager:4;Agile:3;Scrum:3;Leadership:3,Business;Management,Bachelor's Degree,recent graduate,Project Manager
+Product Manager:4;Roadmap:3;Market Research:3;Communication:3,Business;Marketing,Master's Degree,professional,Product Manager
+Financial Analyst:4;Excel:3;Financial Modeling:3;Accounting:3,Finance;Business,Bachelor's Degree,student,Financial Analyst
+Investment Analyst:4;Financial Analysis:3;Valuation:3;Bloomberg:3,Finance;Business,Master's Degree,recent graduate,Investment Analyst
+Accountant:4;QuickBooks:3;Tax:3;Attention to Detail:3,Finance;Business,Bachelor's Degree,student,Accountant
+Marketing Specialist:4;Digital Marketing:3;SEO:3;Google Ads:3,Marketing;Business,Bachelor's Degree,student,Marketing Specialist
+SEO Specialist:4;SEO:3;Content Strategy:3;Analytics:3,Marketing;Business,Bachelor's Degree,student,SEO Specialist
+Social Media Manager:4;Social Media:3;Content Creation:3;Analytics:3,Marketing;Design,Bachelor's Degree,recent graduate,Social Media Manager
+Brand Manager:4;Brand Strategy:3;Market Research:3;Communication:3,Marketing;Design,Master's Degree,professional,Brand Manager
+Graphic Designer:4;Adobe Creative Suite:3;Typography:3;Creativity:3,Design;Arts,Diploma,student,Graphic Designer
+UI/UX Designer:4;Figma:3;User Research:3;Prototyping:3,Design;Technology,Bachelor's Degree,student,UI/UX Designer
+Product Designer:4;Figma:3;User Research:3;Prototyping:3,Design;Technology,Bachelor's Degree,recent graduate,Product Designer
+UX Researcher:4;User Research:3;Usability Testing:3;Data Analysis:3,Design;Technology,Master's Degree,professional,UX Researcher
+Civil Engineer:4;AutoCAD:3;Structural Analysis:3;Project Management:3,Engineering;Business,Bachelor's Degree,student,Civil Engineer
+Mechanical Engineer:4;SolidWorks:3;Thermodynamics:3;CAD:3,Engineering;Technology,Bachelor's Degree,student,Mechanical Engineer
+Electrical Engineer:4;Circuit Design:3;PLC:3;Problem Solving:3,Engineering;Technology,Bachelor's Degree,recent graduate,Electrical Engineer
+Quality Engineer:4;Six Sigma:3;Lean:3;Statistics:3,Engineering;Business,Bachelor's Degree,student,Quality Engineer
+Manufacturing Engineer:4;Lean Manufacturing:3;Process Improvement:3;CAD:3,Engineering;Business,Master's Degree,professional,Manufacturing Engineer
+Teacher:4;Lesson Planning:3;Classroom Management:3;Communication:3,Education;Social Sciences,Bachelor's Degree,student,Teacher
+Special Education Teacher:4;IEP:3;Behavior Management:3;Empathy:3,Education;Social Sciences,Master's Degree,professional,Special Education Teacher
+Instructional Designer:4;E-Learning:3;Articulate:3;LMS:3,Education;Technology,Master's Degree,professional,Instructional Designer
+Curriculum Developer:4;Curriculum Design:3;Assessment:3;Educational Technology:3,Education;Technology,Master's Degree,professional,Curriculum Developer
+Registered Nurse:4;Patient Care:3;Medical Terminology:3;Teamwork:3,Healthcare;Social Sciences,Bachelor's Degree,student,Registered Nurse
+Nurse Practitioner:4;Advanced Patient Care:3;Diagnosis:3;Prescribing:3,Healthcare;Science,Master's Degree,professional,Nurse Practitioner
+Medical Lab Technician:4;Lab Techniques:3;Microscopy:3;Attention to Detail:3,Healthcare;Science,Diploma,student,Medical Lab Technician
+Public Health Officer:4;Epidemiology:3;Biostatistics:3;Health Promotion:3,Healthcare;Education,Master's Degree,professional,Public Health Officer
+Healthcare Administrator:4;Hospital Operations:3;Regulatory:3;Leadership:3,Healthcare;Business,Master's Degree,professional,Healthcare Administrator

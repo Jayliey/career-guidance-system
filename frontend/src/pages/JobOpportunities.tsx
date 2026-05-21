@@ -15,13 +15,18 @@ interface Job {
   apply_url: string;
 }
 
+interface CareerOption {
+  name: string;
+  score: number;
+}
+
 function JobOpportunities() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
-  const [careers, setCareers] = useState<string[]>([]);
-  const [selectedCareer, setSelectedCareer] = useState("all");
+  const [careers, setCareers] = useState<CareerOption[]>([]);
+  const [selectedCareer, setSelectedCareer] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -41,9 +46,8 @@ function JobOpportunities() {
         .select("*");
       if (jobsError) throw jobsError;
       setJobs(jobsData || []);
-      setFilteredJobs(jobsData || []);
 
-      // Fetch user's profile using email (to get interest and skills)
+      // Fetch user's profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("interest, skills, id")
@@ -51,7 +55,7 @@ function JobOpportunities() {
         .single();
       if (profileError) throw profileError;
 
-      // Fetch user's skills using profile.id
+      // Fetch user's skills
       const { data: userSkills } = await supabase
         .from("user_skills")
         .select("skill_name, proficiency")
@@ -64,20 +68,27 @@ function JobOpportunities() {
         skills = skillNames.map((name: string) => ({ name, proficiency: 3 }));
       }
 
+      // Get career matches from backend
       const res = await fetch("http://localhost:5000/ai/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interest: profile.interest, skills }),
       });
-      const matches = await res.json();
-      if (matches && matches.length) {
-        const careerNames: string[] = matches.map((m: any) => m.name);
-        const uniqueCareers: string[] = Array.from(new Set(careerNames));
-        const allCareers: string[] = ["all"];
-        uniqueCareers.forEach((career: string) => allCareers.push(career));
-        setCareers(allCareers);
+      const result = await res.json();
+      const matches = result.matches || result;
+
+      // Take only the top 8 matches
+      if (matches && matches.length > 0) {
+        const top8 = matches.slice(0, 8);
+        const careerList = top8.map((m: any) => ({ name: m.name, score: m.score }));
+        setCareers(careerList);
+        setSelectedCareer(careerList[0].name);
+        // Initial filter: jobs for first career
+        const initialFiltered = jobsData?.filter(job => job.career_key === careerList[0].name.toLowerCase()) || [];
+        setFilteredJobs(initialFiltered);
       } else {
-        setCareers(["all"]);
+        setCareers([]);
+        setFilteredJobs([]);
       }
     } catch (err) {
       console.error(err);
@@ -86,11 +97,10 @@ function JobOpportunities() {
     }
   };
 
+  // Update filtered jobs when selectedCareer or searchTerm changes
   useEffect(() => {
-    let filtered = [...jobs];
-    if (selectedCareer !== "all") {
-      filtered = filtered.filter(job => job.career_key === selectedCareer.toLowerCase());
-    }
+    if (!selectedCareer) return;
+    let filtered = jobs.filter(job => job.career_key === selectedCareer.toLowerCase());
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(job =>
@@ -112,11 +122,11 @@ function JobOpportunities() {
 
       <div className="job-filters">
         <div className="filter-group">
-          <label>Filter by Career:</label>
+          <label>Select Career:</label>
           <select value={selectedCareer} onChange={(e) => setSelectedCareer(e.target.value)}>
-            {careers.map(career => (
-              <option key={career} value={career}>
-                {career === "all" ? "All Careers" : career}
+            {careers.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name} ({c.score}% match)
               </option>
             ))}
           </select>
@@ -133,7 +143,7 @@ function JobOpportunities() {
 
       <div className="jobs-list-full">
         {filteredJobs.length === 0 ? (
-          <div className="no-jobs">No jobs found. Try adjusting filters or add jobs via admin panel.</div>
+          <div className="no-jobs">No jobs found for this career. Try another career or add jobs via admin panel.</div>
         ) : (
           filteredJobs.map(job => (
             <div key={job.id} className="job-card-full">

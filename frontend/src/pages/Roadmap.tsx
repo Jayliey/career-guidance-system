@@ -29,7 +29,6 @@ function Roadmap() {
   const fetchMatches = async () => {
     if (!user) return;
     try {
-      // Use email to fetch profile (matches Dashboard logic)
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -42,11 +41,10 @@ function Roadmap() {
         return;
       }
 
-      // Now use profile.id to fetch skills
       const { data: userSkills } = await supabase
         .from("user_skills")
         .select("skill_name, proficiency")
-        .eq("user_id", profile.id);  // use profile.id, not user.id
+        .eq("user_id", profile.id);
 
       let skills: { name: string; proficiency: number }[] = [];
       if (userSkills && userSkills.length > 0) {
@@ -63,9 +61,13 @@ function Roadmap() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interest: profile.interest, skills }),
       });
-      const matches = await res.json();
+      const result = await res.json();
+      const matches = result.matches || result;
+
       if (matches && matches.length > 0) {
-        const careerList = matches.map((m: any) => ({ name: m.name, score: m.score }));
+        // Take only the top 8 matches
+        const top8 = matches.slice(0, 8);
+        const careerList = top8.map((m: any) => ({ name: m.name, score: m.score }));
         setCareers(careerList);
         setSelectedCareer(careerList[0].name);
       } else {

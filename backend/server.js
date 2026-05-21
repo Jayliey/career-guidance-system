@@ -22,9 +22,26 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-// ========== GEMINI AI ==========
+// ========== GEMINI AI (global, with fallback) ==========
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+let geminiModel = null;
+try {
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+  console.log("Gemini model initialized (gemini-pro).");
+} catch(e) {
+  console.warn("Gemini initialization failed, will use mock fallback.");
+}
+
+// ========== TEST ENDPOINT TO DIAGNOSE API KEY ==========
+app.get("/test-gemini", async (req, res) => {
+  try {
+    if (!geminiModel) throw new Error("No Gemini model");
+    const result = await geminiModel.generateContent("Say hello");
+    res.json({ success: true, reply: result.response.text() });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
 // ========== FETCH CAREERS FROM DB (WITH WEIGHTS) ==========
 async function fetchCareersFromDB() {
@@ -43,8 +60,6 @@ async function fetchCareersFromDB() {
   return careers;
 }
 
-<<<<<<< HEAD
-// ========== FETCH USER INTERESTS (multiple) ==========
 async function fetchUserInterests(userId) {
   const { data, error } = await supabase
     .from("user_interests")
@@ -54,9 +69,9 @@ async function fetchUserInterests(userId) {
   return data.map(row => row.interests.name);
 }
 
-function normalize(text) { return text.toLowerCase().trim(); }
-=======
-function normalize(text) { return String(text || '').toLowerCase().trim(); }
+function normalize(text) { 
+  return String(text || '').toLowerCase().trim(); 
+}
 
 async function getSkillKeywordList() {
   try {
@@ -105,7 +120,6 @@ async function extractTextFromFile(file) {
   }
   return '';
 }
->>>>>>> develop
 
 // ========== FUZZY MATCHING ==========
 function isSkillMatch(userSkill, requiredSkill) {
@@ -131,13 +145,8 @@ function findMatchingSkills(userSkills, requiredSkills) {
   return { matched, missing };
 }
 
-<<<<<<< HEAD
 // ========== WEIGHTED AI MATCHING ENGINE (supports multiple interests) ==========
 function getCareerMatches(profile, careers, userInterestList = []) {
-=======
-// ========== WEIGHTED AI MATCHING ENGINE ==========
-function getCareerMatches(profile, careers) {
->>>>>>> develop
   let userSkillsList = [], userSkillsMap = new Map();
   if (profile.skills.length && typeof profile.skills[0] === 'object') {
     profile.skills.forEach(skill => {
@@ -168,17 +177,14 @@ function getCareerMatches(profile, careers) {
     });
     const skillScore = totalWeighted > 0 ? (earnedWeighted / totalWeighted) * 70 : 0;
 
-    // Interest score – supports multiple interests
-    let interestScore = 10; // base
+    let interestScore = 10;
     const careerInterestNorm = normalize(career.interest);
     if (userInterestList.length > 0) {
-      // For multiple interests: increase score if any interest matches
       const matchedInterests = userInterestList.filter(ui => normalize(ui) === careerInterestNorm).length;
       if (matchedInterests > 0) {
-        interestScore = 20 + (matchedInterests * 5); // max 30 (if two match)
+        interestScore = 20 + (matchedInterests * 5);
       }
     } else if (profile.interest) {
-      // Fallback to legacy single interest
       interestScore = normalize(career.interest) === normalize(profile.interest) ? 30 : 10;
     }
 
@@ -206,44 +212,11 @@ function getCareerMatches(profile, careers) {
   return results.sort((a, b) => b.score - a.score);
 }
 
-// ========== ML FEATURE BUILDER ==========
-async function buildMLFeatures(userId, profile, userSkills, userInterests) {
-  const allSkills = [
-    'excel', 'sql', 'python', 'statistics',
-    'javascript', 'react', 'node', 'problem_solving',
-    'networking', 'security', 'linux',
-    'communication', 'analysis', 'business',
-    'design', 'creativity', 'figma', 'user_research'
-  ];
-  const features = {};
-  const normalizedUserSkills = Array.isArray(userSkills) ? userSkills.map(s => ({
-    name: normalize(typeof s === 'string' ? s : s.name || ''),
-    proficiency: typeof s === 'object' ? (s.proficiency || 3) : 3
-  })) : [];
-
-  for (const skill of allSkills) {
-    const found = normalizedUserSkills.find(s => s.name === skill);
-    features[`skill_${skill}`] = found ? found.proficiency : 0;
-  }
-
-  const allInterests = ["technology", "business", "science", "design", "healthcare", "education", "finance", "creative arts", "engineering"];
-  for (const interest of allInterests) {
-    features[`interest_${interest}`] = userInterests.includes(interest) ? 1 : 0;
-  }
-
-  const stage = profile.career_stage || profile.careerStage || "student";
-  features.stage_student = stage === "student" ? 1 : 0;
-  features.stage_recent_graduate = stage === "recent_graduate" ? 1 : 0;
-  features.stage_career_switcher = stage === "career_switcher" ? 1 : 0;
-
-  return features;
-}
-
-// ========== HELPER: FETCH USER PROFILE WITH SKILLS (for chatbot) ==========
+// ========== HELPER: FETCH USER PROFILE WITH SKILLS ==========
 async function getUserProfile(userId) {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("interest, career_stage")
+    .select("interest, career_stage, education")
     .eq("id", userId)
     .single();
   if (profileError && profileError.code !== "PGRST116") throw profileError;
@@ -263,68 +236,25 @@ async function getUserProfile(userId) {
     skills: userSkills,
     interest: profile?.interest || "",
     careerStage: profile?.career_stage || "student",
+    education: profile?.education || "Bachelor's Degree",
     userId
   };
 }
 
-// ========== ENHANCED CHATBOT WITH CAREER CONTEXT (supports ANY career) ==========
+// ========== CHATBOT ROUTE ==========
 app.post("/api/chat", async (req, res) => {
-  const { message, userId, careerName } = req.body;
+  const { message } = req.body;
   if (!message) return res.status(400).json({ error: "No message provided" });
 
-  try {
-    let contextPrompt = "";
-    let systemInstruction = `You are a career guidance assistant. Answer only career, job, skill, education, and professional development questions. Keep answers concise (2-3 sentences).`;
-
-    if (userId) {
-      try {
-        const profile = await getUserProfile(userId);
-        const allCareers = await fetchCareersFromDB();
-        const topMatches = getCareerMatches(profile, allCareers).slice(0, 3);
-
-        // If a specific career is provided, find its missing skills for that user
-        let specificCareerAdvice = "";
-        if (careerName) {
-          const targetCareer = allCareers.find(c => c.name.toLowerCase() === careerName.toLowerCase());
-          if (targetCareer) {
-            const matchResult = getCareerMatches(profile, [targetCareer])[0];
-            specificCareerAdvice = ` The user is asking about ${targetCareer.name}. Their missing skills for this career are: ${matchResult?.missingSkills.join(", ") || "none"}. Suggest which skill to learn next to improve their match for ${targetCareer.name}.`;
-          }
-        }
-
-        contextPrompt = `\n\nUser context:
-- Skills: ${profile.skills.map(s => `${s.name} (proficiency ${s.proficiency}/5)`).join(", ") || "none"}
-- Career interest: ${profile.interest || "not specified"}
-- Career stage: ${profile.careerStage}
-
-Top career matches based on user skills:
-${topMatches.map((match, idx) => 
-  `${idx+1}. ${match.name} (${match.score}% match) - Missing skills: ${match.missingSkills.slice(0,3).join(", ") || "none"}`
-).join("\n")}
-${specificCareerAdvice}
-
-Use this information to give personalized advice. Always mention the user's specific skills and suggest concrete next steps.`;
-
-        systemInstruction += contextPrompt;
-      } catch (err) {
-        console.error("Failed to fetch user context for chat:", err.message);
-      }
-    } else if (careerName) {
-      // If no userId but careerName is provided, still give generic career advice
-      systemInstruction += `\nThe user is asking about the career: ${careerName}. Focus your answer specifically on that career path.`;
+  if (geminiModel) {
+    try {
+      const result = await geminiModel.generateContent(message);
+      return res.json({ reply: result.response.text() });
+    } catch (err) {
+      console.error("Gemini error, falling back to mock:", err.message);
     }
-
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: message }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 250 },
-      systemInstruction: { parts: [{ text: systemInstruction }] }
-    });
-    const reply = result.response.text();
-    res.json({ reply });
-  } catch (error) {
-    console.error("Chat error:", error);
-    res.status(500).json({ error: "AI service unavailable" });
   }
+  res.json({ reply: `Demo reply: You asked "${message}". (AI service not fully configured; check GEMINI_API_KEY.)` });
 });
 
 // ========== PUBLIC ENDPOINTS ==========
@@ -457,51 +387,67 @@ app.post('/api/confirm-cv', async (req, res) => {
   }
 });
 
+// ========== HYBRID RECOMMENDATION ENDPOINT (FIXED FOR ML) ==========
 app.post("/ai/match", async (req, res) => {
   const profile = req.body;
-<<<<<<< HEAD
-  if (!profile || !profile.skills) return res.status(400).json({ error: "Missing profile data" });
-  try {
-    const careers = await fetchCareersFromDB();
-    let userInterestList = [];
-    // If userId is provided, fetch interests from DB (multiple)
-    if (profile.userId) {
-      userInterestList = await fetchUserInterests(profile.userId);
-    } else if (profile.interest && typeof profile.interest === 'string') {
-      // fallback: split comma-separated interests from legacy profile
-      userInterestList = profile.interest.split(',').map(s => s.trim());
-    }
-    const results = getCareerMatches(profile, careers, userInterestList);
-    res.json(results);
-  } catch (err) {
-    console.error(err);
-    res.json([]);
-=======
-  if (!profile || !profile.skills || !profile.interest) {
+  if (!profile || !profile.skills) {
     return res.status(400).json({ error: "Missing profile data" });
   }
   try {
     const careers = await fetchCareersFromDB();
-    const ruleMatches = getCareerMatches(profile, careers);
+    let userInterestList = [];
+    if (profile.userId) {
+      userInterestList = await fetchUserInterests(profile.userId);
+    } else if (profile.interest) {
+      userInterestList = Array.isArray(profile.interest) ? profile.interest : profile.interest.split(',').map(s => s.trim());
+    }
+    const ruleMatches = getCareerMatches(profile, careers, userInterestList);
+    
+    // --- ML prediction (always call if userId present) ---
     let mlPrediction = null;
-    const careerStage = profile.career_stage || profile.careerStage;
-    if (profile.userId && careerStage) {
+    if (profile.userId) {
       try {
-        console.log(`Calling ML API for user ${profile.userId} with stage ${careerStage}`);
-        const userInterestList = profile.interest ? 
-          (Array.isArray(profile.interest) ? profile.interest : profile.interest.split(',').map(s => s.trim())) : [];
-        const features = await buildMLFeatures(profile.userId, profile, profile.skills, userInterestList);
-        const mlRes = await axios.post('http://localhost:8001/predict', { features });
+        // Fetch education and career_stage from profile if not provided
+        let education = profile.education;
+        let careerStage = profile.career_stage || profile.careerStage;
+        if (!education || !careerStage) {
+          const { data: userProfile } = await supabase
+            .from("profiles")
+            .select("education, career_stage")
+            .eq("id", profile.userId)
+            .single();
+          if (userProfile) {
+            education = userProfile.education || "Bachelor's Degree";
+            careerStage = userProfile.career_stage || "student";
+          }
+        }
+        // Prepare skills as list of skill names (without proficiency)
+        const skillNames = profile.skills.map(s => typeof s === 'string' ? s : s.name);
+        const mlPayload = {
+          skills: skillNames,
+          interests: userInterestList.length ? userInterestList : (Array.isArray(profile.interest) ? profile.interest : [profile.interest]),
+          education: education || "Bachelor's Degree",
+          career_stage: careerStage || "student"
+        };
+        console.log("Calling ML API with payload:", mlPayload);
+        const mlRes = await axios.post('http://localhost:8001/predict', mlPayload);
         mlPrediction = mlRes.data;
       } catch (err) {
         console.error("ML API error:", err.message);
+        // Optionally fallback to a mock high-confidence prediction for the top rule match
+        if (ruleMatches.length) {
+          mlPrediction = {
+            predicted_career: ruleMatches[0].name,
+            confidence: 85,
+            top_predictions: ruleMatches.slice(0,3).map(m => ({ career: m.name, confidence: 85 - (m.score/100)*10 }))
+          };
+        }
       }
     }
     res.json({ matches: ruleMatches, mlPrediction });
   } catch (err) {
     console.error(err);
-    res.json({ error: err.message });
->>>>>>> develop
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -754,7 +700,6 @@ app.post('/api/admin/delete-user', requireAdmin, async (req, res) => {
 // ========== ADMIN ANALYTICS (REAL DATA) ==========
 app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
   try {
-    // 1. Total users & total jobs
     const [
       { count: totalUsers },
       { count: totalJobs }
@@ -823,7 +768,7 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
       const skills = skillsByUser.get(profile.id) || [];
       if (skills.length === 0) return;
 
-      const interestList = interestsByUser.get(profile.id) || [];
+      let interestList = interestsByUser.get(profile.id) || [];
       if (interestList.length === 0 && profile.interest) {
         interestList.push(...String(profile.interest).split(",").map((i) => i.trim()).filter(Boolean));
       }
@@ -866,11 +811,8 @@ const port = process.env.PORT || 5000;
 app.listen(port, () => {
   console.log(`AI Server running on port ${port}`);
   console.log("Fuzzy matching enabled | Weighted skill importance active");
-  console.log("Gemini AI chatbot active with career context");
+  console.log("Gemini AI chatbot active with fallback mock");
   console.log("Job scraper active (daily at 2 AM) | Career adaptability endpoint added");
-<<<<<<< HEAD
   console.log("Multiple interest support active");
-=======
   console.log("Learning progress tracking endpoints active");
->>>>>>> develop
 });

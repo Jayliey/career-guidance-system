@@ -6,17 +6,22 @@ import { useAuth } from "../context/AuthContext";
 function Interests() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [interest, setInterest] = useState("");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  const interestOptions = [
+    "Technology", "Business", "Science", "Design", "Healthcare",
+    "Education", "Finance", "Marketing", "Engineering"
+  ];
 
   useEffect(() => {
     if (!user) {
       navigate("/login");
       return;
     }
-    const fetchInterest = async () => {
+    const fetchInterests = async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("interest")
@@ -24,28 +29,40 @@ function Interests() {
         .single();
       if (error) {
         console.error(error);
-      } else if (data) {
-        setInterest(data.interest || "");
+      } else if (data && data.interest) {
+        let interests: string[] = [];
+        if (Array.isArray(data.interest)) {
+          interests = data.interest;
+        } else if (typeof data.interest === "string") {
+          interests = data.interest.split(",").map(s => s.trim()).filter(Boolean);
+        }
+        setSelectedInterests(interests);
       }
       setLoading(false);
     };
-    fetchInterest();
+    fetchInterests();
   }, [user, navigate]);
 
+  const toggleInterest = (interest: string) => {
+    setSelectedInterests(prev =>
+      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+    );
+  };
+
   const handleSave = async () => {
-    if (!interest) {
-      setMessage("Please select an interest area.");
+    if (selectedInterests.length === 0) {
+      setMessage("Please select at least one interest.");
       return;
     }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ interest })
+      .update({ interest: selectedInterests })
       .eq("id", user!.id);
     if (error) {
       setMessage("Error: " + error.message);
     } else {
-      setMessage("Interest updated successfully!");
+      setMessage("Interests saved successfully!");
     }
     setSaving(false);
     setTimeout(() => setMessage(""), 3000);
@@ -53,41 +70,34 @@ function Interests() {
 
   if (loading) return <div className="loading">Loading interests...</div>;
 
-  const interests = [
-    { value: "technology", label: "Technology", emoji: "💻" },
-    { value: "business", label: "Business", emoji: "📊" },
-    { value: "science", label: "Science", emoji: "🔬" },
-    { value: "design", label: "Design", emoji: "🎨" },
-    { value: "healthcare", label: "Healthcare", emoji: "🏥" },
-    { value: "education", label: "Education", emoji: "📚" },
-  ];
-
   return (
     <div className="interests-page">
       <div className="interests-header">
         <h1>Your Interests</h1>
-        <p>Select the area that best describes your career focus.</p>
+        <p>Select all that apply – these help us personalise your career recommendations.</p>
       </div>
 
       {message && <div className="interests-message">{message}</div>}
 
       <div className="interests-grid">
-        {interests.map((item) => (
-          <div
-            key={item.value}
-            className={`interest-card ${interest === item.value ? "active" : ""}`}
-            onClick={() => setInterest(item.value)}
-          >
-            <div className="interest-emoji">{item.emoji}</div>
-            <div className="interest-label">{item.label}</div>
-            {interest === item.value && <div className="interest-check">✓</div>}
-          </div>
-        ))}
+        {interestOptions.map(interest => {
+          const isActive = selectedInterests.includes(interest);
+          return (
+            <div
+              key={interest}
+              className={`interest-card ${isActive ? "active" : ""}`}
+              onClick={() => toggleInterest(interest)}
+            >
+              <div className="interest-label">{interest}</div>
+              {isActive && <div className="interest-check">✓</div>}
+            </div>
+          );
+        })}
       </div>
 
       <div className="interests-actions">
         <button onClick={handleSave} disabled={saving} className="save-interest-btn">
-          {saving ? "Saving..." : "Save Interest"}
+          {saving ? "Saving..." : "Save Interests"}
         </button>
       </div>
     </div>

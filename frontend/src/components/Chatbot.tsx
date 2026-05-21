@@ -13,6 +13,7 @@ export default function Chatbot({ userId, careerName }: ChatbotProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
   // Scroll to latest message
   useEffect(() => {
@@ -30,17 +31,20 @@ export default function Chatbot({ userId, careerName }: ChatbotProps) {
       if (userId) payload.userId = userId;
       if (careerName) payload.careerName = careerName;
 
-      const res = await fetch("http://localhost:5000/api/chat", {
+      const res = await fetch(`${apiUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to get response from chat service.");
+      }
       const botMsg = { role: "bot", text: data.reply || "Sorry, I couldn't process that." };
       setMessages((prev) => [...prev, botMsg]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages((prev) => [...prev, { role: "bot", text: "Error connecting to AI service." }]);
+      setMessages((prev) => [...prev, { role: "bot", text: error.message || "Error connecting to AI service." }]);
     } finally {
       setLoading(false);
       setInput("");

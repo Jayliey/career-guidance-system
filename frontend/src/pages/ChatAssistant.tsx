@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 
 interface Message {
@@ -17,6 +16,7 @@ function ChatAssistant({ careerName }: ChatAssistantProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,17 +36,20 @@ function ChatAssistant({ careerName }: ChatAssistantProps) {
     if (careerName) payload.careerName = careerName;
 
     try {
-      const res = await fetch("http://localhost:5000/api/chat", {
+      const res = await fetch(`${apiUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to get response from chat service.");
+      }
       const botMsg: Message = { role: "bot", text: data.reply || "Sorry, I couldn't process that." };
       setMessages((prev) => [...prev, botMsg]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages((prev) => [...prev, { role: "bot", text: "Error connecting to AI service." }]);
+      setMessages((prev) => [...prev, { role: "bot", text: error.message || "Error connecting to AI service." }]);
     } finally {
       setLoading(false);
       setInput("");

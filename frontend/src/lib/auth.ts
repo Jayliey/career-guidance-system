@@ -10,7 +10,7 @@ export const isAdmin = async () => {
     .from("profiles")
     .select("role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle(); // Use maybeSingle() to avoid 406 error when no row found
 
   if (error || !data) return false;
 

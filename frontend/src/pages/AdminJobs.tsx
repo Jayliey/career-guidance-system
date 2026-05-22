@@ -18,6 +18,7 @@ function AdminJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Job | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<Partial<Job>>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -60,27 +61,12 @@ function AdminJobs() {
       fetchJobs();
       setEditing(null);
       setForm({});
+      setShowForm(false);
     } catch (err: any) {
-      setMessage(err.message);
+      setMessage(err.message || "Save failed");
     } finally {
       setSaving(false);
       setTimeout(() => setMessage(""), 3000);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this job?")) return;
-    if (!user) return;
-    try {
-      const res = await fetch(`http://localhost:5000/api/admin/jobs/${id}`, {
-        method: "DELETE",
-        headers: { "x-user-id": user.id },
-      });
-      if (!res.ok) throw new Error("Delete failed");
-      setMessage("Job deleted");
-      fetchJobs();
-    } catch (err: any) {
-      setMessage(err.message);
     }
   };
 
@@ -98,6 +84,7 @@ function AdminJobs() {
           onClick={() => {
             setEditing(null);
             setForm({});
+            setShowForm(true);
           }}
           className="add-btn"
         >
@@ -107,7 +94,7 @@ function AdminJobs() {
 
       {message && <div className="admin-message">{message}</div>}
 
-      {editing !== null && (
+      {showForm && (
         <div className="admin-form">
           <h3>{editing ? "Edit Job" : "New Job"}</h3>
           <input
@@ -159,7 +146,7 @@ function AdminJobs() {
             <button onClick={handleSave} disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </button>
-            <button onClick={() => setEditing(null)}>Cancel</button>
+            <button onClick={() => { setEditing(null); setShowForm(false); }}>Cancel</button>
           </div>
         </div>
       )}

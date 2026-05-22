@@ -25,6 +25,7 @@ function AdminCareers() {
   const [careers, setCareers] = useState<Career[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Career | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<CareerForm>({ requiredSkills: [], certifications: [], tools: [], skillInput: "", certInput: "", toolInput: "" });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -81,27 +82,12 @@ function AdminCareers() {
       fetchCareers();
       setEditing(null);
       setForm({ requiredSkills: [], certifications: [], tools: [], skillInput: "", certInput: "", toolInput: "" });
+      setShowForm(false);
     } catch (err: any) {
       setMessage(err.message);
     } finally {
       setSaving(false);
       setTimeout(() => setMessage(""), 3000);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this career? All associated skills will also be deleted.")) return;
-    if (!user) return;
-    try {
-      const res = await fetch(`http://localhost:5000/api/admin/careers/${id}`, {
-        method: "DELETE",
-        headers: { "x-user-id": user.id },
-      });
-      if (!res.ok) throw new Error("Delete failed");
-      setMessage("Career deleted");
-      fetchCareers();
-    } catch (err: any) {
-      setMessage(err.message);
     }
   };
 
@@ -185,6 +171,7 @@ function AdminCareers() {
           onClick={() => {
             setEditing(null);
             setForm({ requiredSkills: [], certifications: [], tools: [], skillInput: "", certInput: "", toolInput: "" });
+            setShowForm(true);
           }}
           className="add-btn"
         >
@@ -194,7 +181,7 @@ function AdminCareers() {
 
       {message && <div className="admin-message">{message}</div>}
 
-      {editing !== null ? (
+      {showForm ? (
         <div className="admin-form">
           <h3>{editing ? "Edit Career" : "New Career"}</h3>
           <input
@@ -306,7 +293,7 @@ function AdminCareers() {
             <button onClick={handleSave} disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </button>
-            <button onClick={() => setEditing(null)}>Cancel</button>
+            <button onClick={() => { setEditing(null); setShowForm(false); }}>Cancel</button>
           </div>
         </div>
       ) : null}
@@ -329,7 +316,7 @@ function AdminCareers() {
                 {(career.requiredSkills || []).join(", ")}
               </td>
               <td>
-                <button onClick={() => { setEditing(career); setForm({ ...career, skillInput: "", certInput: "", toolInput: "" }); }}>
+                <button onClick={() => { setEditing(career); setForm({ ...career, skillInput: "", certInput: "", toolInput: "" }); setShowForm(true); }}>
                   Edit
                 </button>
                 <button onClick={() => handleDelete(career.id)}>Delete</button>

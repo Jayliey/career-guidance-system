@@ -67,7 +67,7 @@ function ChatAssistant({ careerName }: ChatAssistantProps) {
       <div className="chat-messages-container">
         {messages.length === 0 && (
           <div className="chat-welcome">
-            <p>👋 Welcome! I'm your AI career assistant. How can I help you today?</p>
+            <p>Welcome! I'm your AI career assistant. How can I help you today?</p>
             <p>Example questions:</p>
             <ul>
               <li>What does a Data Analyst do?</li>

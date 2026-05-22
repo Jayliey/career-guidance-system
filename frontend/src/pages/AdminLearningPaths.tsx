@@ -17,6 +17,7 @@ function AdminLearningPaths() {
   const [items, setItems] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<LearningPath | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<Partial<LearningPath>>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -59,8 +60,9 @@ function AdminLearningPaths() {
       fetchItems();
       setEditing(null);
       setForm({});
+      setShowForm(false);
     } catch (err: any) {
-      setMessage(err.message);
+      setMessage(err.message || "Save failed");
     } finally {
       setSaving(false);
       setTimeout(() => setMessage(""), 3000);
@@ -79,7 +81,8 @@ function AdminLearningPaths() {
       setMessage("Item deleted");
       fetchItems();
     } catch (err: any) {
-      setMessage(err.message);
+      setMessage(err.message || "Delete failed");
+      setTimeout(() => setMessage(""), 3000);
     }
   };
 
@@ -97,6 +100,7 @@ function AdminLearningPaths() {
           onClick={() => {
             setEditing(null);
             setForm({});
+            setShowForm(true);
           }}
           className="add-btn"
         >
@@ -106,7 +110,7 @@ function AdminLearningPaths() {
 
       {message && <div className="admin-message">{message}</div>}
 
-      {editing !== null && (
+      {showForm && (
         <div className="admin-form">
           <h3>{editing ? "Edit Item" : "New Item"}</h3>
           <input
@@ -158,7 +162,7 @@ function AdminLearningPaths() {
             <button onClick={handleSave} disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </button>
-            <button onClick={() => setEditing(null)}>Cancel</button>
+            <button onClick={() => { setEditing(null); setShowForm(false); }}>Cancel</button>
           </div>
         </div>
       )}
@@ -185,7 +189,7 @@ function AdminLearningPaths() {
               <td>{item.resource_type}</td>
               <td>{item.display_order}</td>
               <td>
-                <button onClick={() => { setEditing(item); setForm(item); }}>Edit</button>
+                <button onClick={() => { setEditing(item); setForm(item); setShowForm(true); }}>Edit</button>
                 <button onClick={() => handleDelete(item.id)}>Delete</button>
               </td>
             </tr>

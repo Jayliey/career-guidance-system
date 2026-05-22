@@ -74,11 +74,6 @@ function ChatAssistant({ careerName }: ChatAssistantProps) {
               <li>How do I become a Software Engineer?</li>
               <li>What skills are needed for Cybersecurity?</li>
             </ul>
-            {user && (
-              <p className="text-sm text-blue-600 mt-2">
-                💡 I know your skills and can suggest what to learn next for your target career.
-              </p>
-            )}
           </div>
         )}
         {messages.map((msg, idx) => (

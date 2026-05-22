@@ -91,7 +91,7 @@ function Home() {
           <div className="cta">
             <button className="primary" onClick={goToOnboarding}>Start AI Assessment</button>
             <button className="secondary" onClick={goToDashboard}>View Dashboard</button>
-            <button className="demo-btn" onClick={goToDemoMode}>🎮 Try Demo Mode</button>
+            <button className="demo-btn" onClick={goToDemoMode}>Try Demo Mode</button>
           </div>
         </section>
 

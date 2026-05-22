@@ -139,7 +139,7 @@ function Matches() {
                     <div className="progress-fill" style={{ width: `${c.completion}%` }} />
                   </div>
                   <div className="reasoning">
-                    <strong>🧠 AI Reasoning:</strong> {c.reasoning}
+                    <strong>Reasoning:</strong> {c.reasoning}
                   </div>
                   <div className="skill-stats">
                     <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
@@ -147,16 +147,16 @@ function Matches() {
                   </div>
                   {adaptabilityScores[c.id] !== undefined && (
                     <div className="adaptability-score">
-                      🔄 Transferable skills: {adaptabilityScores[c.id]}%
+                      Transferable skills: {adaptabilityScores[c.id]}%
                       <span className="adaptability-hint"> (versatile career)</span>
                     </div>
                   )}
                   <div className="match-buttons">
                     <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>
-                      🗺️ View Learning Path
+                      View Learning Path
                     </button>
                     <button className="jobs-btn" onClick={() => openJobs(c.name)}>
-                      💼 View Jobs
+                      View Jobs
                     </button>
                   </div>
                 </div>

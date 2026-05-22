@@ -26,7 +26,7 @@ function Dashboard() {
   const [expandedCareer, setExpandedCareer] = useState<number | null>(null);
   const [adaptabilityMap, setAdaptabilityMap] = useState<{ [key: number]: number }>({});
 
-  // ========== MISSING STATES ADDED ==========
+  // ========== STATES ==========
   const [progressStats, setProgressStats] = useState({ completed: 0, total: 0, percent: 0 });
   const [userInterests, setUserInterests] = useState<string[]>([]);
   const [mlPrediction, setMlPrediction] = useState<any>(null);
@@ -64,7 +64,6 @@ function Dashboard() {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  // Fetch progress for the top career (used for the stats card)
   const fetchProgressForCareer = async (careerName: string, userId: string) => {
     try {
       const careerKey = careerName.toLowerCase();
@@ -91,7 +90,6 @@ function Dashboard() {
     }
   };
 
-  // Fetch adaptability score when a career card is expanded
   useEffect(() => {
     if (expandedCareer !== null) {
       const career = matches[expandedCareer];
@@ -165,6 +163,7 @@ function Dashboard() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            userId: user.id,
             interest: profile.interest,
             skills: profile.skills
           }),
@@ -220,9 +219,23 @@ function Dashboard() {
         <p>Here’s your personalized career overview</p>
       </div>
 
+      {/* ========== UPDATED ML BANNER – TOP 3 PREDICTIONS ========== */}
       {mlPrediction && (
         <div className="ml-prediction-banner">
-          🤖 ML Model Suggests: <strong>{mlPrediction.predicted_career}</strong> (confidence: {mlPrediction.confidence}%)
+          <div style={{ fontWeight: "bold", marginBottom: "8px" }}>🤖 ML Model Top Predictions:</div>
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            {mlPrediction.top_predictions ? (
+              mlPrediction.top_predictions.slice(0, 3).map((pred: any, idx: number) => (
+                <div key={idx} style={{ background: "rgba(79,140,255,0.2)", padding: "8px 16px", borderRadius: "40px" }}>
+                  <strong>{pred.career}</strong> – {pred.confidence}% confidence
+                </div>
+              ))
+            ) : (
+              <div>
+                <strong>{mlPrediction.predicted_career}</strong> – {mlPrediction.confidence}% confidence
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -237,7 +250,6 @@ function Dashboard() {
         <div className="stat-card"><h3>Jobs Recommended</h3><div className="stat-value">{matches.length}</div><div className="stat-label">New opportunities</div></div>
       </div>
 
-      {/* Display user interests */}
       {userInterests.length > 0 && (
         <div className="interests-section">
           <h3>Your Interests</h3>
@@ -338,12 +350,12 @@ function Dashboard() {
         <JobListings careerName={selectedJobCareer} onClose={() => setShowJobs(false)} />
       )}
       {showEditModal && (
-  <EditProfileModal
-    currentProfile={data}
-    onClose={() => setShowEditModal(false)}
-    onUpdate={refreshDashboard}
-  />
-)}
+        <EditProfileModal
+          currentProfile={data}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={refreshDashboard}
+        />
+      )}
       {showCvModal && (
         <CVUploadModal
           userId={authUser?.id}

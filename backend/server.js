@@ -632,11 +632,12 @@ app.delete("/api/admin/learning-paths/:id", requireAdmin, async (req, res) => {
 // ========== JOB SCRAPING ==========
 const categoryMap = {
   'it-jobs': 'software engineer',
-  'data-science-jobs': 'data analyst',
-  'security-jobs': 'cybersecurity analyst',
-  'business-jobs': 'business analyst',
-  'design-jobs': 'ui/ux designer'
+  'engineering-jobs': 'cybersecurity analyst',
+  'accounting-finance-jobs': 'business analyst',
+  'creative-design-jobs': 'ui/ux designer',
+  'teaching-jobs': 'teacher'
 };
+
 function extractSkills(description) {
   const skillKeywords = ['javascript','react','node','python','sql','excel','statistics','linux','security','communication','analysis','design','java','c++','aws','docker','git','agile'];
   if (!description) return [];
@@ -646,17 +647,21 @@ function extractSkills(description) {
 async function scrapeJobs() {
   console.log('🔄 Adzuna job scrape started...');
   let added = 0, errors = 0;
+
   for (const [adzunaCategory, careerKey] of Object.entries(categoryMap)) {
+      console.log(`adzunaCategory: ${adzunaCategory}`);
+  console.log(`careerKey: ${careerKey}`);
     try {
-      const url = `https://api.adzuna.com/v1/api/jobs/us/search/1`;
-      const params = {
-        app_id: process.env.ADZUNA_APP_ID,
-        app_key: process.env.ADZUNA_API_KEY,
-        results_per_page: 20,
-        category: adzunaCategory,
-        content_type: 'application/json'
-      };
-      const response = await axios.get(url, { params });
+      const url = `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${process.env.ADZUNA_APP_ID}&app_key=${process.env.ADZUNA_API_KEY}&results_per_page=20&category=${adzunaCategory}`;
+
+
+
+      console.log("Making request...");
+      const response = await axios.get(url);
+      // console.log("response:", response.data);
+      // console.log(response.data.results);
+
+
       const jobs = response.data.results;
       if (!jobs || jobs.length === 0) continue;
       for (const job of jobs) {
@@ -672,12 +677,23 @@ async function scrapeJobs() {
           created_at: new Date(),
           updated_at: new Date()
         };
-        const { error } = await supabase.from('jobs').upsert(jobData, { onConflict: 'title, company' });
+
+        console.log(`jobdata, ${jobData.title}`)
+
+        const { error } = await supabase.from('jobs').upsert(jobData);
+        
+        console.log(`errror: ${error.message}`);
+        
         if (error) { errors++; } else { added++; }
       }
       await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err) { errors++; }
+    } catch (err) { 
+      // console.error(`Error occurred while scraping ${adzunaCategory}:`, err);
+      errors++;
+    }
   }
+
+
   console.log(`✅ Scrape finished. Added/Updated: ${added}, Errors: ${errors}`);
   return { added, errors };
 }

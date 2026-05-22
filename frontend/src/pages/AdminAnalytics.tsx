@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabaseClient"; // ✅ import supabase
 import {
   BarChart,
   Bar,
@@ -30,6 +31,8 @@ function AdminAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeResult, setScrapeResult] = useState<string | null>(null);
 
   const COLORS = ["#4f8cff", "#a855f7", "#ff8c00", "#4caf50", "#ff4d4d"];
 
@@ -42,7 +45,7 @@ function AdminAnalytics() {
   }, [user, navigate]);
 
   const fetchAnalytics = async () => {
-    setLoading(true);
+    // setLoading(true);
     setError(null);
     try {
       const res = await fetch("http://localhost:5000/api/admin/analytics", {
@@ -59,6 +62,34 @@ function AdminAnalytics() {
     }
   };
 
+  const triggerScrape = async () => {
+    setScraping(true);
+    setScrapeResult(null);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const res = await fetch("http://localhost:5000/api/admin/scrape-jobs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": authUser?.id || "",
+        },
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setScrapeResult(`✅ Added: ${result.result?.added || 0}, Errors: ${result.result?.errors || 0}`);
+        // Refresh analytics to show updated job count
+        fetchAnalytics();
+      } else {
+        setScrapeResult(`❌ Error: ${result.error || "Unknown error"}`);
+      }
+    } catch (err: any) {
+      setScrapeResult(`❌ Request failed: ${err.message}`);
+    } finally {
+      setScraping(false);
+      setTimeout(() => setScrapeResult(null), 5000);
+    }
+  };
+
   if (loading) return <div className="admin-analytics"><h1>Admin Dashboard</h1><div className="loading">Loading...</div></div>;
   if (error) return <div className="admin-analytics"><h1>Admin Dashboard</h1><div className="error">{error}</div><button onClick={fetchAnalytics}>Retry</button></div>;
   if (!data) return null;
@@ -68,6 +99,29 @@ function AdminAnalytics() {
   return (
     <div className="admin-analytics">
       <h1>Admin Dashboard</h1>
+
+      {/* Scraper test button */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
+        <button
+          onClick={triggerScrape}
+          disabled={scraping}
+          style={{
+            background: "#4f8cff",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: "8px",
+            color: "white",
+            cursor: "pointer",
+          }}
+        >
+          {scraping ? "Scraping..." : "🧹 Test Job Scraper"}
+        </button>
+        {scrapeResult && (
+          <span style={{ marginLeft: "12px", padding: "8px", background: "rgba(255,255,255,0.1)", borderRadius: "8px" }}>
+            {scrapeResult}
+          </span>
+        )}
+      </div>
 
       {/* Stats Cards */}
       <div className="stats-cards">

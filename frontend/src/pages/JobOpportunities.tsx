@@ -82,10 +82,16 @@ function JobOpportunities() {
         const top8 = matches.slice(0, 8);
         const careerList = top8.map((m: any) => ({ name: m.name, score: m.score }));
         setCareers(careerList);
-        setSelectedCareer(careerList[0].name);
-        // Initial filter: jobs for first career
-        const initialFiltered = jobsData?.filter(job => job.career_key === careerList[0].name.toLowerCase()) || [];
-        setFilteredJobs(initialFiltered);
+        if (careerList.length > 0) {
+          setSelectedCareer(careerList[0].name);
+          // Initial filter: jobs for first career - normalize for comparison
+          const normalizeCareerKey = (name: string) => name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+          const initialFiltered = jobsData?.filter(job => 
+            normalizeCareerKey(job.career_key) === normalizeCareerKey(careerList[0].name)
+          ) || [];
+          setFilteredJobs(initialFiltered);
+          console.log(`Filtered jobs for ${careerList[0].name}:`, initialFiltered.length, 'jobs found');
+        }
       } else {
         setCareers([]);
         setFilteredJobs([]);
@@ -100,7 +106,8 @@ function JobOpportunities() {
   // Update filtered jobs when selectedCareer or searchTerm changes
   useEffect(() => {
     if (!selectedCareer) return;
-    let filtered = jobs.filter(job => job.career_key === selectedCareer.toLowerCase());
+    const normalizeCareerKey = (name: string) => name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    let filtered = jobs.filter(job => normalizeCareerKey(job.career_key) === normalizeCareerKey(selectedCareer));
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(job =>

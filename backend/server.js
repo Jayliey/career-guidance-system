@@ -3,7 +3,6 @@ const cors = require("cors");
 const fuzzball = require("fuzzball");
 const supabase = require("./supabaseClient");
 const supabaseAdmin = require("./supabaseAdmin");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require("axios");
 const multer = require("multer");
 const pdfParse = require("pdf-parse");
@@ -20,27 +19,6 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 *
 // ========== HEALTH CHECK ==========
 app.get("/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
-});
-
-// ========== GEMINI AI (global, with fallback) ==========
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-let geminiModel = null;
-try {
-  geminiModel = genAI.getGenerativeModel({ model: "gemini-pro" });
-  console.log("Gemini model initialized (gemini-pro).");
-} catch(e) {
-  console.warn("Gemini initialization failed, will use mock fallback.");
-}
-
-// ========== TEST ENDPOINT TO DIAGNOSE API KEY ==========
-app.get("/test-gemini", async (req, res) => {
-  try {
-    if (!geminiModel) throw new Error("No Gemini model");
-    const result = await geminiModel.generateContent("Say hello");
-    res.json({ success: true, reply: result.response.text() });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
 });
 
 // ========== FETCH CAREERS FROM DB (WITH WEIGHTS) ==========
@@ -241,20 +219,45 @@ async function getUserProfile(userId) {
   };
 }
 
-// ========== CHATBOT ROUTE ==========
+// ========== CHATBOT ROUTE (Gemini 3.1 Pro Preview - Free) ==========
 app.post("/api/chat", async (req, res) => {
-  const { message } = req.body;
+  const { message, userId } = req.body;
   if (!message) return res.status(400).json({ error: "No message provided" });
 
-  if (geminiModel) {
-    try {
-      const result = await geminiModel.generateContent(message);
-      return res.json({ reply: result.response.text() });
-    } catch (err) {
-      console.error("Gemini error, falling back to mock:", err.message);
-    }
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) {
+    return res.json({ reply: "AI service not configured. Please check API key." });
   }
-  res.json({ reply: `Demo reply: You asked "${message}". (AI service not fully configured; check GEMINI_API_KEY.)` });
+
+  // Use the latest free preview model
+  const model = "gemini-3-flash-preview";
+const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+  try {
+    let prompt = `You are a helpful career guidance assistant. Answer the following question briefly and helpfully:\n\n${message}`;
+
+    // Optional: add user context if userId provided
+    if (userId) {
+      try {
+        const profile = await getUserProfile(userId);
+        prompt = `You are a helpful career guidance assistant. The user has skills: ${profile.skills.map(s => s.name).join(", ")}. Interests: ${profile.interest || "not specified"}. Answer: ${message}`;
+      } catch (err) {
+        console.error("Failed to fetch user context:", err.message);
+      }
+    }
+
+    const response = await axios.post(
+      url,
+      { contents: [{ parts: [{ text: prompt }] }] },
+      { headers: { "Content-Type": "application/json" }, timeout: 10000 }
+    );
+    const reply = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!reply) throw new Error("No reply from Gemini");
+    res.json({ reply });
+  } catch (error) {
+    console.error("Gemini API error:", error.response?.data || error.message);
+    res.json({ reply: "I'm having trouble reaching my AI service. Please try again later." });
+  }
 });
 
 // ========== PUBLIC ENDPOINTS ==========
@@ -387,7 +390,7 @@ app.post('/api/confirm-cv', async (req, res) => {
   }
 });
 
-// ========== HYBRID RECOMMENDATION ENDPOINT (FIXED FOR ML) ==========
+// ========== HYBRID RECOMMENDATION ENDPOINT ==========
 app.post("/ai/match", async (req, res) => {
   const profile = req.body;
   if (!profile || !profile.skills) {
@@ -407,7 +410,6 @@ app.post("/ai/match", async (req, res) => {
     let mlPrediction = null;
     if (profile.userId) {
       try {
-        // Fetch education and career_stage from profile if not provided
         let education = profile.education;
         let careerStage = profile.career_stage || profile.careerStage;
         if (!education || !careerStage) {
@@ -421,7 +423,6 @@ app.post("/ai/match", async (req, res) => {
             careerStage = userProfile.career_stage || "student";
           }
         }
-        // Prepare skills as list of skill names (without proficiency)
         const skillNames = profile.skills.map(s => typeof s === 'string' ? s : s.name);
         const mlPayload = {
           skills: skillNames,
@@ -434,7 +435,6 @@ app.post("/ai/match", async (req, res) => {
         mlPrediction = mlRes.data;
       } catch (err) {
         console.error("ML API error:", err.message);
-        // Optionally fallback to a mock high-confidence prediction for the top rule match
         if (ruleMatches.length) {
           mlPrediction = {
             predicted_career: ruleMatches[0].name,
@@ -649,19 +649,12 @@ async function scrapeJobs() {
   let added = 0, errors = 0;
 
   for (const [adzunaCategory, careerKey] of Object.entries(categoryMap)) {
-      console.log(`adzunaCategory: ${adzunaCategory}`);
-  console.log(`careerKey: ${careerKey}`);
+    console.log(`adzunaCategory: ${adzunaCategory}`);
+    console.log(`careerKey: ${careerKey}`);
     try {
       const url = `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${process.env.ADZUNA_APP_ID}&app_key=${process.env.ADZUNA_API_KEY}&results_per_page=20&category=${adzunaCategory}`;
-
-
-
       console.log("Making request...");
       const response = await axios.get(url);
-      // console.log("response:", response.data);
-      // console.log(response.data.results);
-
-
       const jobs = response.data.results;
       if (!jobs || jobs.length === 0) continue;
       for (const job of jobs) {
@@ -677,23 +670,16 @@ async function scrapeJobs() {
           created_at: new Date(),
           updated_at: new Date()
         };
-
-        console.log(`jobdata, ${jobData.title}`)
-
+        console.log(`jobdata, ${jobData.title}`);
         const { error } = await supabase.from('jobs').upsert(jobData);
-        
-        console.log(`errror: ${error.message}`);
-        
+        console.log(`error: ${error?.message}`);
         if (error) { errors++; } else { added++; }
       }
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (err) { 
-      // console.error(`Error occurred while scraping ${adzunaCategory}:`, err);
       errors++;
     }
   }
-
-
   console.log(`✅ Scrape finished. Added/Updated: ${added}, Errors: ${errors}`);
   return { added, errors };
 }
@@ -827,7 +813,7 @@ const port = process.env.PORT || 5000;
 app.listen(port, () => {
   console.log(`AI Server running on port ${port}`);
   console.log("Fuzzy matching enabled | Weighted skill importance active");
-  console.log("Gemini AI chatbot active with fallback mock");
+  console.log("Gemini AI chatbot active (direct axios to gemini-1.5-flash)");
   console.log("Job scraper active (daily at 2 AM) | Career adaptability endpoint added");
   console.log("Multiple interest support active");
   console.log("Learning progress tracking endpoints active");

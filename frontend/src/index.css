@@ -2296,10 +2296,23 @@ body {
 .add-skill-form select, .add-skill-form button {
   padding: 10px;
   border-radius: 40px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid #4f8cff;
-  color: white;
+  background: white;
+  border: 2px solid #000;
+  color: black;
   cursor: pointer;
+}
+
+.add-skill-form select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 20px;
+  padding-right: 35px;
+}
+
+.add-skill-form select:hover {
+  background-color: #f0f0f0;
 }
 
 .add-skill-form button {
@@ -2569,11 +2582,25 @@ body {
 }
 
 .roadmap-controls select {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid #4f8cff;
+  background: white;
+  border: 2px solid #000;
   border-radius: 40px;
   padding: 6px 12px;
-  color: white;
+  color: black;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 28px;
+}
+
+.roadmap-controls select:hover {
+  background-color: #f0f0f0;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
 }
 
 .roadmap-tabs-full {
@@ -2681,10 +2708,23 @@ body {
 .filter-group select, .filter-group input {
   padding: 8px 16px;
   border-radius: 40px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid #4f8cff;
-  color: white;
+  background: white;
+  border: 2px solid #000;
+  color: black;
   min-width: 180px;
+}
+
+.filter-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 20px;
+  padding-right: 35px;
+}
+
+.filter-group select:hover {
+  background-color: #f0f0f0;
 }
 
 .jobs-list-full {
@@ -3394,6 +3434,57 @@ body {
   background: rgba(79,140,255,0.3);
 }
 
+/* Make career stage, interest chips and other step buttons match Motivation UI */
+.career-stage-option, .interest-chip {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(79,140,255,0.3);
+  border-radius: 60px;
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.career-stage-option.active, .interest-chip.active {
+  background: #4f8cff;
+  border-color: #4f8cff;
+  color: white;
+}
+.career-stage-option:hover, .interest-chip:hover {
+  background: rgba(79,140,255,0.3);
+}
+
+/* Step 4 (Education) should show options like the corrected Step 5: white background and black text */
+.education-option {
+  background: white;
+  color: black;
+  border: 1px solid #d0d4d8;
+  border-radius: 60px;
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.education-option.active {
+  background: #4f8cff;
+  border-color: #4f8cff;
+  color: white;
+}
+
+/* Make the skills dropdown and proficiency selector clearly readable without hover */
+.skill-select, .proficiency-select {
+  background: white;
+  color: black;
+  border: 1px solid #d0d4d8;
+  border-radius: 12px;
+  padding: 10px;
+}
+.skill-select option, .proficiency-select option {
+  background: white;
+  color: black;
+}
+
 .motivation-input {
   width: 100%;
   padding: 12px;
@@ -3847,4 +3938,3 @@ body {
 .details-btn:hover {
   background: rgba(183, 186, 190, 0.4);
 }
->>>>>>> develop

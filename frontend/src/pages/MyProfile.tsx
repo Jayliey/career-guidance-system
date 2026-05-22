@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import EditProfileModal from "../components/EditProfileModal";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import "../App.css";
 
 function MyProfile() {
   const navigate = useNavigate();
@@ -33,7 +35,6 @@ function MyProfile() {
           return;
         }
 
-        // Get profile using email
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
@@ -47,7 +48,6 @@ function MyProfile() {
         setAboutMe(profileData.about_me || "");
         setAvatarUrl(profileData.avatar_url || null);
 
-        // Get skills
         const { data: userSkills } = await supabase
           .from("user_skills")
           .select("skill_name, proficiency")
@@ -63,28 +63,26 @@ function MyProfile() {
         }
         setSkills(userSkillsArray);
 
-        // Get user interests (multiple)
-const { data: interestsData, error: interestsError } = await supabase
-  .from("user_interests")
-  .select("interests(name)")
-  .eq("user_id", user.id);
-if (!interestsError && interestsData) {
-  const interestNames = (interestsData as any[]).map(row => row.interests?.name).filter(Boolean);
-  setUserInterests(interestNames);
-} else if (profileData.interest) {
-  setUserInterests(profileData.interest.split(',').map((s: string) => s.trim()));
-} else {
-  setUserInterests([]);
-}
+        const { data: interestsData, error: interestsError } = await supabase
+          .from("user_interests")
+          .select("interests(name)")
+          .eq("user_id", user.id);
+        if (!interestsError && interestsData) {
+          const interestNames = (interestsData as any[]).map(row => row.interests?.name).filter(Boolean);
+          setUserInterests(interestNames);
+        } else if (profileData.interest) {
+          setUserInterests(profileData.interest.split(',').map((s: string) => s.trim()));
+        } else {
+          setUserInterests([]);
+        }
 
-        // Fetch AI matches for recommended focus (use the fresh skills array)
         const res = await fetch("http://localhost:5000/ai/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             interest: profileData.interest,
-            skills: userSkillsArray, // use fresh array, not state
-            userId: user.id, // pass userId so backend can fetch multiple interests
+            skills: userSkillsArray,
+            userId: user.id,
           }),
         });
         const result = await res.json();
@@ -181,7 +179,6 @@ if (!interestsError && interestsData) {
 
   if (loading) return <div className="loading">Loading profile...</div>;
 
-  // Compute stats
   const totalSkills = skills.length;
   const strongSkills = skills.filter(s => s.proficiency >= 4).length;
   const averageSkills = skills.filter(s => s.proficiency >= 2 && s.proficiency <= 3).length;
@@ -197,15 +194,17 @@ if (!interestsError && interestsData) {
   return (
     <div className="myprofile-container">
       <div className="myprofile-header">
-        <h1>My Profile</h1>
+        <h1><i className="fas fa-user-circle"></i> My Profile</h1>
         <div className="myprofile-actions">
           <button onClick={() => setShowEditModal(true)} className="edit-goals-btn">
-            ✏️ Edit Goals
+            <i className="fas fa-pen"></i> Edit Goals
           </button>
           <button onClick={() => navigate("/dashboard")} className="download-report-btn">
-            📄 Download Report (PDF)
+            <i className="fas fa-chart-line"></i> Dashboard
           </button>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
+          <button onClick={handleLogout} className="logout-btn">
+            <i className="fas fa-sign-out-alt"></i> Logout
+          </button>
         </div>
       </div>
 
@@ -217,11 +216,13 @@ if (!interestsError && interestsData) {
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Profile" className="avatar-img" />
               ) : (
-                <div className="avatar-placeholder">📷</div>
+                <div className="avatar-placeholder">
+                  <i className="fas fa-user"></i>
+                </div>
               )}
               <div className="avatar-buttons">
                 <label className="avatar-upload-btn">
-                  📸 Upload
+                  <i className="fas fa-upload"></i> Upload
                   <input
                     type="file"
                     accept="image/*"
@@ -232,16 +233,16 @@ if (!interestsError && interestsData) {
                 </label>
                 {avatarUrl && (
                   <button onClick={handleDeleteAvatar} className="avatar-delete-btn" disabled={uploadingAvatar}>
-                    🗑️ Remove
+                    <i className="fas fa-trash-alt"></i> Remove
                   </button>
                 )}
               </div>
             </div>
-            <h2>{profile?.email?.split('@')[0] || "User"}</h2>
-            <p className="profile-email">{profile?.email}</p>
-            <p className="profile-joined">Joined on {new Date(profile?.created_at || Date.now()).toLocaleDateString()}</p>
+            <h2><i className="fas fa-user"></i> {profile?.email?.split('@')[0] || "User"}</h2>
+            <p className="profile-email"><i className="fas fa-envelope"></i> {profile?.email}</p>
+            <p className="profile-joined"><i className="fas fa-calendar-alt"></i> Joined on {new Date(profile?.created_at || Date.now()).toLocaleDateString()}</p>
             <div className="profile-completion">
-              <span>Profile Complete</span>
+              <span><i className="fas fa-chart-simple"></i> Profile Complete</span>
               <div className="completion-bar">
                 <div className="completion-fill" style={{ width: `${completion}%` }} />
               </div>
@@ -250,7 +251,7 @@ if (!interestsError && interestsData) {
           </div>
 
           <div className="skills-card">
-            <h3>Your Skills</h3>
+            <h3><i className="fas fa-code"></i> Your Skills</h3>
             <div className="skills-list">
               {skills.map((skill, idx) => (
                 <div key={idx} className="skill-row">
@@ -265,33 +266,33 @@ if (!interestsError && interestsData) {
         {/* Right column */}
         <div className="myprofile-right">
           <div className="about-card">
-            <h3>About Me</h3>
+            <h3><i className="fas fa-user-edit"></i> About Me</h3>
             {editingAbout ? (
               <div className="about-edit">
                 <textarea
                   value={aboutMe}
                   onChange={(e) => setAboutMe(e.target.value)}
                   rows={4}
+                  placeholder="Tell us about your career goals, experience, and aspirations..."
                 />
                 <div className="about-buttons">
-                  <button onClick={handleSaveAbout}>Save</button>
-                  <button onClick={() => setEditingAbout(false)}>Cancel</button>
+                  <button onClick={handleSaveAbout}><i className="fas fa-save"></i> Save</button>
+                  <button onClick={() => setEditingAbout(false)}><i className="fas fa-times"></i> Cancel</button>
                 </div>
               </div>
             ) : (
               <div className="about-text">
-                <p>{aboutMe || "No description yet. Click edit to add."}</p>
+                <p>{aboutMe || "No description yet. Click edit to add your career goals and aspirations."}</p>
                 <button onClick={() => setEditingAbout(true)} className="edit-about-btn">
-                  Edit
+                  <i className="fas fa-edit"></i> Edit
                 </button>
               </div>
             )}
           </div>
 
-          {/* Display multiple interests */}
           {userInterests.length > 0 && (
             <div className="interests-card">
-              <h3>Your Interests</h3>
+              <h3><i className="fas fa-heart"></i> Your Interests</h3>
               <div className="tags">
                 {userInterests.map((interest, idx) => (
                   <span key={idx} className="interest-tag">{interest}</span>
@@ -301,43 +302,42 @@ if (!interestsError && interestsData) {
           )}
 
           <div className="profile-completion-details">
-            <h3>My Profile Completion</h3>
+            <h3><i className="fas fa-check-circle"></i> My Profile Completion</h3>
             <ul>
-              <li>✅ Basic Information</li>
-              <li>{skills.length > 0 ? "✅" : "❌"} Skills Added ({skills.length} skills)</li>
-              <li>{profile?.degree_program ? "✅" : "❌"} Degree Program {profile?.degree_program && `(${profile.degree_program})`}</li>
-              <li>{profile?.career_stage ? "✅" : "❌"} Career Stage {profile?.career_stage && `(${profile.career_stage})`}</li>
-              <li>{avatarUrl ? "✅" : "❌"} Profile Picture</li>
-              <li>{aboutMe?.length > 10 ? "✅" : "❌"} Career Goals</li>
+              <li><i className="fas fa-check-circle"></i> Basic Information</li>
+              <li>{skills.length > 0 ? <i className="fas fa-check-circle"></i> : <i className="fas fa-times-circle"></i>} Skills Added ({skills.length} skills)</li>
+              <li>{profile?.degree_program ? <i className="fas fa-check-circle"></i> : <i className="fas fa-times-circle"></i>} Degree Program {profile?.degree_program && `(${profile.degree_program})`}</li>
+              <li>{profile?.career_stage ? <i className="fas fa-check-circle"></i> : <i className="fas fa-times-circle"></i>} Career Stage {profile?.career_stage && `(${profile.career_stage})`}</li>
+              <li>{avatarUrl ? <i className="fas fa-check-circle"></i> : <i className="fas fa-times-circle"></i>} Profile Picture</li>
+              <li>{aboutMe?.length > 10 ? <i className="fas fa-check-circle"></i> : <i className="fas fa-times-circle"></i>} Career Goals</li>
             </ul>
           </div>
 
           <div className="skill-summary">
-            <h3>Skill Summary</h3>
+            <h3><i className="fas fa-chart-bar"></i> Skill Summary</h3>
             <div className="summary-stats">
-              <div>Total Skills: <strong>{totalSkills}</strong></div>
-              <div>Strong Skills (4-5): <strong>{strongSkills}</strong></div>
-              <div>Average Skills (2-3): <strong>{averageSkills}</strong></div>
-              <div>Beginner Skills (1): <strong>{beginnerSkills}</strong></div>
+              <div><i className="fas fa-tasks"></i> Total Skills: <strong>{totalSkills}</strong></div>
+              <div><i className="fas fa-star"></i> Strong Skills (4-5): <strong>{strongSkills}</strong></div>
+              <div><i className="fas fa-chart-line"></i> Average Skills (2-3): <strong>{averageSkills}</strong></div>
+              <div><i className="fas fa-seedling"></i> Beginner Skills (1): <strong>{beginnerSkills}</strong></div>
             </div>
           </div>
 
           <div className="recommended-focus">
-            <h3>Recommended Focus</h3>
+            <h3><i className="fas fa-lightbulb"></i> Recommended Focus</h3>
             {topCareerMissing.length > 0 ? (
               <p>
-                Focus on improving {topCareerMissing.slice(0, 3).join(", ")} to increase your match with your top career.
+                <i className="fas fa-arrow-right"></i> Focus on improving {topCareerMissing.slice(0, 3).join(", ")} to increase your match with your top career.
               </p>
             ) : (
-              <p>Keep building your skills – you're on track!</p>
+              <p><i className="fas fa-check-circle"></i> Keep building your skills – you're on track!</p>
             )}
           </div>
         </div>
       </div>
 
-      {showEditModal && profile && (
+      {showEditModal && profile && authUser && (
         <EditProfileModal
-          user={authUser}
           currentProfile={profile}
           onClose={() => setShowEditModal(false)}
           onUpdate={() => window.location.reload()}

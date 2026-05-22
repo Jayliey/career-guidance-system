@@ -8,6 +8,8 @@ import JobListings from "../components/JobListings";
 import EditProfileModal from "../components/EditProfileModal";
 import CVUploadModal from "../components/CVUploadModal";
 import CareerDetailsModal from "../components/CareerDetailsModal";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import "../App.css";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -26,7 +28,6 @@ function Dashboard() {
   const [expandedCareer, setExpandedCareer] = useState<number | null>(null);
   const [adaptabilityMap, setAdaptabilityMap] = useState<{ [key: number]: number }>({});
 
-  // ========== STATES ==========
   const [progressStats, setProgressStats] = useState({ completed: 0, total: 0, percent: 0 });
   const [userInterests, setUserInterests] = useState<string[]>([]);
   const [mlPrediction, setMlPrediction] = useState<any>(null);
@@ -147,7 +148,6 @@ function Dashboard() {
         }
         setData(profile);
 
-        // Fetch user's multiple interests
         const { data: interestsData, error: interestsError } = await supabase
           .from("user_interests")
           .select("interests(name)")
@@ -173,7 +173,6 @@ function Dashboard() {
         setMatches(matchesArray);
         if (result.mlPrediction) {
           setMlPrediction(result.mlPrediction);
-          console.log("ML Prediction:", result.mlPrediction);
         }
 
         if (matchesArray.length > 0) {
@@ -202,36 +201,39 @@ function Dashboard() {
   const matchedCount = uniqueRequired.filter(skill => allUserSkillNames.includes(skill)).length;
   const missingCount = uniqueRequired.length - matchedCount;
   const recommendedSkills = matches.flatMap((c: any) => c.missingSkills || []).slice(0, 3);
+  
+  const totalSkillsCount = matchedCount + missingCount;
+  const matchedPercent = totalSkillsCount > 0 ? (matchedCount / totalSkillsCount) * 100 : 0;
 
   return (
     <div>
       <div className="main-header">
-        <h1>Career Dashboard</h1>
+        <div>
+          <h1>Career Dashboard</h1>
+          <div className="welcome-inside">
+            <h2>Welcome back, {authUser?.email?.split('@')[0] || 'User'}!</h2>
+            <p>Here's your personalized career overview</p>
+          </div>
+        </div>
         <div className="header-actions">
-          <button onClick={() => setShowEditModal(true)} className="edit-profile-btn">✏️ Edit Profile</button>
-          <button onClick={() => setShowCvModal(true)} className="edit-profile-btn">📄 Upload CV</button>
-          <button onClick={downloadReport} className="download-report-btn" disabled={downloading}>📄 Download Report</button>
+          <button onClick={() => setShowEditModal(true)} className="edit-profile-btn">Edit Profile</button>
+          <button onClick={() => setShowCvModal(true)} className="edit-profile-btn">Upload CV</button>
+          <button onClick={downloadReport} className="download-report-btn" disabled={downloading}> Download Report</button>
         </div>
       </div>
 
-      <div className="welcome-section">
-        <h2>Welcome back, {authUser?.email?.split('@')[0] || 'User'}! 🎉</h2>
-        <p>Here’s your personalized career overview</p>
-      </div>
-
-      {/* ========== UPDATED ML BANNER – TOP 3 PREDICTIONS ========== */}
       {mlPrediction && (
         <div className="ml-prediction-banner">
-          <div style={{ fontWeight: "bold", marginBottom: "8px" }}>🤖 ML Model Top Predictions:</div>
+          <div style={{ fontWeight: "bold" }}>ML Model Top Predictions:</div>
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
             {mlPrediction.top_predictions ? (
               mlPrediction.top_predictions.slice(0, 3).map((pred: any, idx: number) => (
-                <div key={idx} style={{ background: "rgba(79,140,255,0.2)", padding: "8px 16px", borderRadius: "40px" }}>
+                <div key={idx} style={{ background: "rgba(59,130,246,0.15)", padding: "6px 14px", borderRadius: "6px", fontSize: "0.75rem" }}>
                   <strong>{pred.career}</strong> – {pred.confidence}% confidence
                 </div>
               ))
             ) : (
-              <div>
+              <div style={{ background: "rgba(59,130,246,0.15)", padding: "6px 14px", borderRadius: "6px", fontSize: "0.75rem" }}>
                 <strong>{mlPrediction.predicted_career}</strong> – {mlPrediction.confidence}% confidence
               </div>
             )}
@@ -261,72 +263,87 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="matches-section">
-        <h2>Top Career Matches</h2>
-        <div className="matches-list">
-          {matches.slice(0, 5).map((c: any, idx: number) => (
-            <div key={idx} className="match-item">
-              <div
-                className="match-summary"
-                onClick={() => setExpandedCareer(expandedCareer === idx ? null : idx)}
-              >
-                <span className="match-rank">{idx + 1}.</span>
-                <span className="match-name">{c.name}</span>
-                <span className="match-percent">{c.score}% Match</span>
-                <span className="match-completion">Skills Completion: {c.completion}%</span>
-                <button className="match-toggle">{expandedCareer === idx ? '−' : '+'}</button>
-              </div>
-              {expandedCareer === idx && (
-                <div className="match-details">
-                  <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
-                  <p><strong>Missing Skills:</strong> {c.missingSkills?.length || 0}</p>
-                  {c.id && adaptabilityMap[c.id] !== undefined && (
-                    <div className="adaptability-score">
-                      🔄 Transferable skills: {adaptabilityMap[c.id]}%
-                      <span className="adaptability-hint"> (versatile career)</span>
-                    </div>
-                  )}
-                  <div className="match-buttons">
-                    <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>🗺️ View Learning Path</button>
-                    <button className="jobs-btn" onClick={() => openJobs(c.name)}>💼 View Jobs</button>
-                    <button
-                      className="details-btn"
-                      onClick={() => {
-                        console.log("Career ID being passed:", c.id);
-                        setSelectedCareerId(c.id);
-                        setShowCareerDetails(true);
-                      }}
-                    >
-                      🔍 See more
-                    </button>
-                  </div>
+      <div className="two-column-layout">
+        {/* LEFT COLUMN - Top Career Matches */}
+        <div className="matches-card">
+          <div className="matches-header">
+            <h2><i className="fas fa-bullseye"></i> Top Career Matches</h2>
+            <p>Based on your skills and interests</p>
+          </div>
+          <div className="matches-list">
+            {matches.slice(0, 5).map((c: any, idx: number) => (
+              <div key={idx} className="match-item">
+                <div className="match-summary" onClick={() => setExpandedCareer(expandedCareer === idx ? null : idx)}>
+                  <span className="match-rank">{idx + 1}.</span>
+                  <span className="match-name">{c.name}</span>
+                  <span className="match-percent">{c.score}% Match</span>
+                  <span className="match-completion">Skills: {c.completion}%</span>
+                  <button className="match-toggle">{expandedCareer === idx ? '−' : '+'}</button>
                 </div>
-              )}
+                {expandedCareer === idx && (
+                  <div className="match-details">
+                    <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
+                    <p><strong>Missing Skills:</strong> {c.missingSkills?.length || 0}</p>
+                    {c.id && adaptabilityMap[c.id] !== undefined && (
+                      <div className="adaptability-score">
+                        Transferable skills: {adaptabilityMap[c.id]}%
+                      </div>
+                    )}
+                    <div className="match-buttons">
+                      <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>Learning Path</button>
+                      <button className="jobs-btn" onClick={() => openJobs(c.name)}>View Jobs</button>
+                      <button className="details-btn" onClick={() => { setSelectedCareerId(c.id); setShowCareerDetails(true); }}>🔍 Details</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN - Larger pie chart, more height */}
+        <div className="right-column">
+          <div className="skills-card">
+            <div className="skills-header">
+              <h2><i className="fas fa-chart-pie"></i> Skills Breakdown</h2>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="pie-chart-container">
+              <div className="pie-chart" style={{
+                width: "120px",
+                height: "120px",
+                background: `conic-gradient(#3b82f6 0deg ${matchedPercent * 3.6}deg, #ef4444 ${matchedPercent * 3.6}deg 360deg)`
+              }}>
+                <div className="pie-inner" style={{ width: "80px", height: "80px" }}>
+                  <span className="pie-total" style={{ fontSize: "1.3rem" }}>{totalSkillsCount}</span>
+                  <span className="pie-label">Total Skills</span>
+                </div>
+              </div>
+              <div className="pie-legend">
+                <div className="legend-item">
+                  <span className="legend-color matched"></span>
+                  <span>Matched Skills: {matchedCount}</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color missing"></span>
+                  <span>Missing Skills: {missingCount}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <div className="skills-breakdown">
-        <h2>Skills Breakdown</h2>
-        <div className="breakdown-stats">
-          <div className="breakdown-card"><div className="breakdown-value">{matchedCount}</div><div className="breakdown-label">Matched Skills</div></div>
-          <div className="breakdown-card"><div className="breakdown-value">{missingCount}</div><div className="breakdown-label">Missing Skills</div></div>
-          <div className="breakdown-card"><div className="breakdown-value">{recommendedSkills.length}</div><div className="breakdown-label">Recommended</div></div>
+          <div className="next-steps">
+            <h2><i className="fas fa-list-check"></i> Recommended Next Steps</h2>
+            <ul>
+              {recommendedSkills.map((skill, i) => <li key={i}><strong>Learn {skill}</strong> – High demand skill for your top career</li>)}
+              <li><strong>Build Projects</strong> – Create 2–3 projects to strengthen your profile</li>
+              <li><strong>Complete Roadmap</strong> – Follow the roadmap and gain expertise</li>
+            </ul>
+          </div>
         </div>
-      </div>
-
-      <div className="next-steps">
-        <h2>Recommended Next Steps</h2>
-        <ul>
-          {recommendedSkills.map((skill, i) => <li key={i}><strong>Learn {skill}</strong> – High demand skill for your top career</li>)}
-          <li><strong>Build Projects</strong> – Create 2–3 projects to strengthen your profile</li>
-          <li><strong>Complete Roadmap</strong> – Follow the roadmap and gain expertise</li>
-        </ul>
       </div>
 
       <div className="user-skills-section">
-        <h2>Your Skills</h2>
+        <h2><i className="fas fa-star"></i> Your Skills</h2>
         <div className="user-skills-list">
           {data.skills.map((skill: any, i: number) => (
             <div key={i} className="user-skill-item">

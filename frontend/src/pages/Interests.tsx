@@ -22,23 +22,42 @@ function Interests() {
       return;
     }
     const fetchInterests = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("interest")
-        .eq("id", user.id)
-        .single();
-      if (error) {
-        console.error(error);
-      } else if (data && data.interest) {
-        let interests: string[] = [];
-        if (Array.isArray(data.interest)) {
-          interests = data.interest;
-        } else if (typeof data.interest === "string") {
-          interests = data.interest.split(",").map(s => s.trim()).filter(Boolean);
+      try {
+        const { data: userInterestsData, error: userInterestsError } = await supabase
+          .from("user_interests")
+          .select("interests(name)")
+          .eq("user_id", user.id);
+
+        if (!userInterestsError && Array.isArray(userInterestsData) && userInterestsData.length > 0) {
+          const interests = userInterestsData
+            .map((row: any) => row.interests?.name)
+            .filter((name: string | undefined): name is string => Boolean(name));
+          setSelectedInterests(interests);
+          return;
         }
-        setSelectedInterests(interests);
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("interest")
+          .eq("email", user.email)
+          .single();
+
+        if (error) {
+          console.error(error);
+        } else if (data && data.interest) {
+          let interests: string[] = [];
+          if (Array.isArray(data.interest)) {
+            interests = data.interest;
+          } else if (typeof data.interest === "string") {
+            interests = data.interest.split(",").map(s => s.trim()).filter(Boolean);
+          }
+          setSelectedInterests(interests);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchInterests();
   }, [user, navigate]);
@@ -55,17 +74,22 @@ function Interests() {
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ interest: selectedInterests })
-      .eq("id", user!.id);
-    if (error) {
-      setMessage("Error: " + error.message);
-    } else {
-      setMessage("Interests saved successfully!");
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ interest: selectedInterests })
+        .eq("email", user!.email);
+      if (error) {
+        setMessage("Error: " + error.message);
+      } else {
+        setMessage("Interests saved successfully!");
+      }
+    } catch (err: any) {
+      setMessage("Error: " + err.message);
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMessage(""), 3000);
     }
-    setSaving(false);
-    setTimeout(() => setMessage(""), 3000);
   };
 
   if (loading) return <div className="loading">Loading interests...</div>;

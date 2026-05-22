@@ -6,9 +6,11 @@ interface Job {
   company: string;
   location: string;
   salary: string;
-  requiredSkills: string[];
+  requiredSkills?: string[];
+  required_skills?: string[];
   description: string;
-  applyUrl: string;
+  applyUrl?: string;
+  apply_url?: string;
 }
 
 function JobListings({
@@ -99,7 +101,7 @@ function JobListings({
                     <strong>Required Skills:</strong>
 
                     <div className="job-skills-list">
-                      {(job.requiredSkills || []).map(
+                      {((job.requiredSkills || job.required_skills) || []).map(
                         (skill: string) => (
                           <span
                             key={skill}
@@ -113,7 +115,7 @@ function JobListings({
                   </div>
 
                   <a
-                    href={job.applyUrl}
+                    href={job.applyUrl || job.apply_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="job-apply-btn"

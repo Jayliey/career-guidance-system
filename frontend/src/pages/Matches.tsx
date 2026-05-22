@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import CareerRoadmap from "../components/CareerRoadmap";
 import JobListings from "../components/JobListings";
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function Matches() {
   const navigate = useNavigate();
@@ -19,13 +20,25 @@ function Matches() {
   const [userSkills, setUserSkills] = useState<{ name: string; proficiency: number }[]>([]);
 
   const openRoadmap = (careerName: string) => {
+    console.log("Opening roadmap for career:", careerName);
     setSelectedCareer(careerName);
     setShowRoadmap(true);
   };
 
   const openJobs = (careerName: string) => {
+    console.log("Opening jobs for career:", careerName);
     setSelectedCareer(careerName);
     setShowJobs(true);
+  };
+
+  const closeRoadmap = () => {
+    setShowRoadmap(false);
+    setSelectedCareer("");
+  };
+
+  const closeJobs = () => {
+    setShowJobs(false);
+    setSelectedCareer("");
   };
 
   useEffect(() => {
@@ -94,7 +107,6 @@ function Matches() {
         });
         const result = await res.json();
         const allMatches = result.matches || [];
-        // ✅ Keep only top 8 matches
         setMatches(allMatches.slice(0, 8));
       } catch (err) {
         console.error(err);
@@ -106,19 +118,22 @@ function Matches() {
     fetchMatches();
   }, [user, navigate]);
 
-  if (loading) return <div className="loading">Loading career matches...</div>;
-  if (error) return <div className="error-message">⚠️ {error}</div>;
+  if (loading) return <div className="loading"><i className="fas fa-spinner fa-pulse"></i> Loading career matches...</div>;
+  if (error) return <div className="error-message"><i className="fas fa-exclamation-circle"></i> {error}</div>;
 
   return (
     <div className="matches-page">
       <div className="matches-header">
-        <h1>Career Matches</h1>
+        <h1><i className="fas fa-chart-line"></i> Career Matches</h1>
         <p>Based on your skills and interests</p>
       </div>
 
       <div className="matches-list">
         {matches.length === 0 ? (
-          <p>No career matches found. Please update your skills and interests.</p>
+          <div className="no-matches">
+            <i className="fas fa-info-circle"></i>
+            <p>No career matches found. Please update your skills and interests.</p>
+          </div>
         ) : (
           matches.map((c, idx) => (
             <div key={idx} className="match-item">
@@ -129,34 +144,90 @@ function Matches() {
                 <span className="match-rank">{idx + 1}.</span>
                 <span className="match-name">{c.name}</span>
                 <span className="match-percent">{c.score}% Match</span>
-                <span className="match-completion">Skills Completion: {c.completion}%</span>
-                <button className="match-toggle">{expanded === idx ? "−" : "+"}</button>
+                <span className="match-completion">
+                  <i className="fas fa-chart-simple"></i> {c.completion}%
+                </span>
+                <button className="match-toggle">
+                  <i className={`fas fa-chevron-${expanded === idx ? "up" : "down"}`}></i>
+                </button>
               </div>
               {expanded === idx && (
                 <div className="match-details">
-                  <p className="match-description">{c.description}</p>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${c.completion}%` }} />
+                  {c.description && (
+                    <p className="match-description">
+                      <i className="fas fa-info-circle"></i> {c.description}
+                    </p>
+                  )}
+                  <div className="progress-section">
+                    <div className="progress-label">
+                      <span>Skills Completion</span>
+                      <span>{c.completion}%</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{ width: `${c.completion}%` }} />
+                    </div>
                   </div>
-                  <div className="reasoning">
-                    <strong>Reasoning:</strong> {c.reasoning}
-                  </div>
-                  <div className="skill-stats">
-                    <p><strong>Matched Skills:</strong> {c.matchedSkills?.length || 0}</p>
-                    <p><strong>Missing Skills:</strong> {c.missingSkills?.length || 0}</p>
-                  </div>
-                  {adaptabilityScores[c.id] !== undefined && (
-                    <div className="adaptability-score">
-                      Transferable skills: {adaptabilityScores[c.id]}%
-                      <span className="adaptability-hint"> (versatile career)</span>
+                  {c.reasoning && (
+                    <div className="reasoning">
+                      <i className="fas fa-brain"></i>
+                      <strong>AI Reasoning:</strong> {c.reasoning}
                     </div>
                   )}
+                  <div className="skill-stats">
+                    <div className="skill-stat">
+                      <i className="fas fa-check-circle"></i>
+                      <span>Matched Skills: <strong>{c.matchedSkills?.length || 0}</strong></span>
+                    </div>
+                    <div className="skill-stat">
+                      <i className="fas fa-times-circle"></i>
+                      <span>Missing Skills: <strong>{c.missingSkills?.length || 0}</strong></span>
+                    </div>
+                  </div>
+                  
+                  {/* Display Matched Skills Tags */}
+                  {c.matchedSkills && c.matchedSkills.length > 0 && (
+                    <div className="matched-skills-list">
+                      <strong><i className="fas fa-check"></i> Your Matched Skills:</strong>
+                      <div className="skills-tags">
+                        {c.matchedSkills.slice(0, 8).map((skill: string, i: number) => (
+                          <span key={i} className="skill-tag matched">{skill}</span>
+                        ))}
+                        {c.matchedSkills.length > 8 && (
+                          <span className="skill-tag more">+{c.matchedSkills.length - 8} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Display Missing Skills Tags */}
+                  {c.missingSkills && c.missingSkills.length > 0 && (
+                    <div className="missing-skills-list">
+                      <strong><i className="fas fa-graduation-cap"></i> Skills to Learn:</strong>
+                      <div className="skills-tags">
+                        {c.missingSkills.slice(0, 8).map((skill: string, i: number) => (
+                          <span key={i} className="skill-tag missing">{skill}</span>
+                        ))}
+                        {c.missingSkills.length > 8 && (
+                          <span className="skill-tag more">+{c.missingSkills.length - 8} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {adaptabilityScores[c.id] !== undefined && (
+                    <div className="adaptability-score">
+                      <i className="fas fa-exchange-alt"></i>
+                      Transferable skills: {adaptabilityScores[c.id]}%
+                      <span className="adaptability-hint"> (versatile career path)</span>
+                    </div>
+                  )}
+                  
                   <div className="match-buttons">
                     <button className="roadmap-btn" onClick={() => openRoadmap(c.name)}>
-                      View Learning Path
+                      <i className="fas fa-map"></i> View Learning Path
                     </button>
                     <button className="jobs-btn" onClick={() => openJobs(c.name)}>
-                      View Jobs
+                      <i className="fas fa-briefcase"></i> View Jobs
                     </button>
                   </div>
                 </div>
@@ -166,14 +237,34 @@ function Matches() {
         )}
       </div>
 
+      {/* CareerRoadmap Modal */}
       {showRoadmap && (
-        <CareerRoadmap
-          careerName={selectedCareer}
-          onClose={() => setShowRoadmap(false)}
-          userSkills={userSkills}
-        />
+        <div className="modal-overlay" onClick={closeRoadmap}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeRoadmap}>
+              <i className="fas fa-times"></i>
+            </button>
+            <CareerRoadmap
+              careerName={selectedCareer}
+              onClose={closeRoadmap}
+              userSkills={userSkills}
+              userId={user?.id}
+            />
+          </div>
+        </div>
       )}
-      {showJobs && <JobListings careerName={selectedCareer} onClose={() => setShowJobs(false)} />}
+
+      {/* JobListings Modal */}
+      {showJobs && (
+        <div className="modal-overlay" onClick={closeJobs}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeJobs}>
+              <i className="fas fa-times"></i>
+            </button>
+            <JobListings careerName={selectedCareer} onClose={closeJobs} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

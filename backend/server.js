@@ -264,11 +264,36 @@ const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:ge
 app.post("/api/jobs", async (req, res) => {
   const { careerName } = req.body;
   if (!careerName) return res.status(400).json({ error: "Career name required" });
+
+  const normalizeCareerKey = (value) => {
+    if (!value) return "";
+    return value
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+  };
+
+  const requestedCareerKey = normalizeCareerKey(careerName);
+
   try {
-    const { data, error } = await supabase.from("jobs").select("*").eq("career_key", careerName.toLowerCase());
+    const { data, error } = await supabase.from("jobs").select("*");
     if (error) throw error;
-    res.json(data || []);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    const filteredJobs = (data || []).filter((job) => {
+      const jobCareerKey = normalizeCareerKey(job.career_key);
+      return (
+        jobCareerKey === requestedCareerKey ||
+        jobCareerKey.includes(requestedCareerKey) ||
+        requestedCareerKey.includes(jobCareerKey)
+      );
+    });
+
+    res.json(filteredJobs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/roadmap", async (req, res) => {
@@ -704,10 +729,14 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
   try {
     const [
       { count: totalUsers },
-      { count: totalJobs }
+      { count: totalJobs },
+      { count: totalSkills },
+      { count: totalCareers }
     ] = await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("jobs").select("id", { count: "exact", head: true })
+      supabase.from("jobs").select("id", { count: "exact", head: true }),
+      supabase.from("skills").select("id", { count: "exact", head: true }),
+      supabase.from("careers").select("id", { count: "exact", head: true })
     ]);
 
     const { data: profiles } = await supabase
@@ -743,6 +772,17 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
       if (row.interests?.name) list.push(row.interests.name);
       interestsByUser.set(row.user_id, list);
     });
+
+    const skillCounts = {};
+    (skillRows || []).forEach((row) => {
+      if (!row.skill_name) return;
+      skillCounts[row.skill_name] = (skillCounts[row.skill_name] || 0) + 1;
+    });
+
+    const topSkills = Object.entries(skillCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
     const careers = await fetchCareersFromDB();
     const careerCount = {};
@@ -795,12 +835,39 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
+    const today = new Date();
+    const oneDayAgo = new Date(today);
+    oneDayAgo.setDate(today.getDate() - 1);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    const activeUsersToday = (profiles || []).filter((profile) => {
+      if (!profile.created_at) return false;
+      return new Date(profile.created_at) >= oneDayAgo;
+    }).length;
+    const newUsersThisWeek = (profiles || []).filter((profile) => {
+      if (!profile.created_at) return false;
+      return new Date(profile.created_at) >= sevenDaysAgo;
+    }).length;
+    const newUsersThisMonth = (profiles || []).filter((profile) => {
+      if (!profile.created_at) return false;
+      return new Date(profile.created_at) >= thirtyDaysAgo;
+    }).length;
+
     res.json({
       totalUsers: totalUsers || 0,
       totalJobs: totalJobs || 0,
+      totalSkills: totalSkills || 0,
+      totalCareers: totalCareers || 0,
       userGrowth,
       careerMatchesStats,
       skillGaps,
+      topSkills,
+      activeUsersToday,
+      newUsersThisWeek,
+      newUsersThisMonth,
     });
   } catch (err) {
     console.error("Analytics error:", err);

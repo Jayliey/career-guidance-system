@@ -40,6 +40,24 @@ function AdminJobs() {
     }
   };
 
+  // ✅ ADD THIS handleDelete FUNCTION
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this job?")) return;
+    if (!user) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/jobs/${id}`, {
+        method: "DELETE",
+        headers: { "x-user-id": user.id },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setMessage("Job deleted");
+      fetchJobs();
+    } catch (err: any) {
+      setMessage(err.message || "Delete failed");
+      setTimeout(() => setMessage(""), 3000);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -171,6 +189,7 @@ function AdminJobs() {
                   onClick={() => {
                     setEditing(job);
                     setForm(job);
+                    setShowForm(true);
                   }}
                 >
                   Edit

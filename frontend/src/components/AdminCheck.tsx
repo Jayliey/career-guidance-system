@@ -26,8 +26,13 @@ export default function AdminCheck({ children }: AdminCheckProps) {
   }, []);
 
   if (loading) {
-    return <div className="loading">Checking admin permissions...</div>;
+    return (
+      <div className="admin-check-loading">
+        <i className="fas fa-spinner fa-pulse"></i>
+        <span>Verifying permissions...</span>
+      </div>
+    );
   }
 
-  return admin ? <>{children}</> : <Navigate to="/" replace />;
+  return admin ? <>{children}</> : <Navigate to="/dashboard" replace />;
 }

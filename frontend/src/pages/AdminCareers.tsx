@@ -47,6 +47,24 @@ function AdminCareers() {
     }
   };
 
+  // ✅ ADD THIS handleDelete FUNCTION
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this career? This will also remove related learning paths.")) return;
+    if (!user) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/careers/${id}`, {
+        method: "DELETE",
+        headers: { "x-user-id": user.id },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setMessage("Career deleted");
+      fetchCareers();
+    } catch (err: any) {
+      setMessage(err.message || "Delete failed");
+      setTimeout(() => setMessage(""), 3000);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     if (!form.name || !form.interest) {

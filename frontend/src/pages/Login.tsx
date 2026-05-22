@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -14,10 +15,37 @@ export default function Login() {
   const handleLogin = async () => {
     if (!email || !password) return alert("Enter email and password");
     setLoading(true);
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) {
+      setLoading(false);
+      alert(error.message);
+      return;
+    }
+
+    // Fetch user's role from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("email", email)
+      .single();
+
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+      setLoading(false);
+      alert("Error fetching user role. Please contact support.");
+      return;
+    }
+
     setLoading(false);
-    if (error) alert(error.message);
-    else navigate("/dashboard");
+
+    // Redirect based on role
+    if (profile?.role === "admin") {
+      navigate("/admin");
+    } else {
+      navigate("/dashboard");
+    }
   };
 
   const handleResetPassword = async () => {
@@ -43,24 +71,32 @@ export default function Login() {
     <>
       <div className="auth-container">
         <div className="auth-card">
-          <h2>Login</h2>
+          <h2><i className="fas fa-sign-in-alt"></i> Login</h2>
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <div className="input-group">
+            <i className="fas fa-envelope"></i>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="input-group">
+            <i className="fas fa-lock"></i>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+            />
+          </div>
 
-          <button onClick={handleLogin} disabled={loading}>
-            {loading ? "Logging..." : "Login"}
+          <button onClick={handleLogin} disabled={loading} className="login-btn">
+            {loading ? <><i className="fas fa-spinner fa-pulse"></i> Logging...</> : <><i className="fas fa-arrow-right"></i> Login</>}
           </button>
 
           {/* Forgot password link */}
@@ -70,7 +106,7 @@ export default function Login() {
               onClick={() => setShowResetModal(true)}
               className="forgot-btn"
             >
-              Forgot password?
+              <i className="fas fa-key"></i> Forgot password?
             </button>
           </div>
         </div>
@@ -80,7 +116,7 @@ export default function Login() {
       {showResetModal && (
         <div className="modal-overlay" onClick={() => setShowResetModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Reset Password</h3>
+            <h3><i className="fas fa-envelope"></i> Reset Password</h3>
             <p>Enter your email address and we'll send you a link to reset your password.</p>
             <input
               type="email"
@@ -90,9 +126,11 @@ export default function Login() {
             />
             <div className="modal-buttons">
               <button onClick={handleResetPassword} disabled={resetLoading}>
-                {resetLoading ? "Sending..." : "Send reset link"}
+                {resetLoading ? <><i className="fas fa-spinner fa-pulse"></i> Sending...</> : <><i className="fas fa-paper-plane"></i> Send reset link</>}
               </button>
-              <button onClick={() => setShowResetModal(false)}>Cancel</button>
+              <button onClick={() => setShowResetModal(false)}>
+                <i className="fas fa-times"></i> Cancel
+              </button>
             </div>
           </div>
         </div>

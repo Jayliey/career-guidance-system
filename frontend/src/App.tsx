@@ -1,14 +1,13 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import DemoDashboard from "./pages/DemoDashboard";
-import AdminCheck from "./components/AdminCheck";
 import AdminJobs from "./pages/AdminJobs";
 import AdminLearningPaths from "./pages/AdminLearningPaths";
-import AdminAnalytics from "./pages/AdminAnalytics";
+import AdminDashboard from "./pages/AdminDashboard";
 import AdminCareers from "./pages/AdminCareers";
 
 // New user pages
@@ -32,7 +31,15 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/demo-dashboard" element={<DemoDashboard />} />
 
-      {/* Protected routes – with persistent sidebar */}
+      {/* Admin routes – no sidebar (separate layout) */}
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/analytics" element={<Navigate replace to="/admin/dashboard" />} />
+      <Route path="/admin/jobs" element={<AdminJobs />} />
+      <Route path="/admin/learning-paths" element={<AdminLearningPaths />} />
+      <Route path="/admin/careers" element={<AdminCareers />} />
+
+      {/* Protected user routes – with persistent sidebar */}
       <Route element={<Layout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/my-profile" element={<MyProfile />} />
@@ -44,10 +51,6 @@ function App() {
         <Route path="/chat-assistant" element={<ChatAssistant />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/admin/jobs" element={<AdminCheck><AdminJobs /></AdminCheck>} />
-        <Route path="/admin/learning-paths" element={<AdminCheck><AdminLearningPaths /></AdminCheck>} />
-        <Route path="/admin/analytics" element={<AdminCheck><AdminAnalytics /></AdminCheck>} />
-        <Route path="/admin/careers" element={<AdminCheck><AdminCareers /></AdminCheck>} />
       </Route>
 
       {/* 404 */}

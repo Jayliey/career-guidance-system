@@ -50,7 +50,7 @@ function Layout() {
         {isAdminState && (
           <div className="sidebar-admin-section">
             <div className="sidebar-admin-title">Admin</div>
-            <NavLink to="/admin/analytics" onClick={() => setMobileMenuOpen(false)}>
+            <NavLink to="/admin/dashboard" onClick={() => setMobileMenuOpen(false)}>
               Admin Dashboard
             </NavLink>
           </div>

@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 interface RoadmapItem {
+  id: number;
   skill: string;
   duration: string;
-  resource: string;
-  type: string;
+  resource_url: string;
+  resource_type: string;
+  career_key: string;
+  period: string;
+  display_order: number;
 }
 
 interface RoadmapData {
@@ -65,7 +70,6 @@ function Roadmap() {
       const matches = result.matches || result;
 
       if (matches && matches.length > 0) {
-        // Take only the top 8 matches
         const top8 = matches.slice(0, 8);
         const careerList = top8.map((m: any) => ({ name: m.name, score: m.score }));
         setCareers(careerList);
@@ -89,11 +93,19 @@ function Roadmap() {
         body: JSON.stringify({ careerName }),
       });
       const data = await res.json();
+      
+      console.log("Roadmap data received:", data);
+      
       if (!res.ok || data.error) {
         setError(data.error || "Roadmap not available");
         setRoadmap(null);
       } else {
-        setRoadmap(data);
+        // The API returns data directly with shortTerm, mediumTerm, longTerm
+        setRoadmap({
+          shortTerm: data.shortTerm || [],
+          mediumTerm: data.mediumTerm || [],
+          longTerm: data.longTerm || []
+        });
       }
     } catch (err) {
       console.error(err);
@@ -118,35 +130,76 @@ function Roadmap() {
     }
   }, [selectedCareer]);
 
+  const openResourceLink = (url: string, skillName: string) => {
+    if (url && url !== "#" && url !== "" && url !== "(example)") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else {
+      // Fallback to YouTube search
+      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(skillName + " tutorial")}`;
+      window.open(searchUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const getResourceTypeIcon = (type: string) => {
+    switch(type?.toLowerCase()) {
+      case "free": return <i className="fas fa-gift" style={{ color: "#10b981" }}></i>;
+      case "paid": return <i className="fas fa-dollar-sign" style={{ color: "#f59e0b" }}></i>;
+      default: return <i className="fas fa-book"></i>;
+    }
+  };
+
   if (careers.length === 0 && !loading && !error)
     return <div className="loading">No career matches found.</div>;
 
   const renderItems = (items: RoadmapItem[] = []) => (
     <div className="roadmap-items-full">
-      {items.map((item, idx) => (
-        <div key={idx} className="roadmap-item-full">
-          <h4>{item.skill}</h4>
-          <p className="roadmap-duration-full">⏱️ {item.duration}</p>
-          <a href={item.resource} target="_blank" rel="noopener noreferrer" className="roadmap-link-full">
-            📚 Learning Resource →
-          </a>
+      {!items || items.length === 0 ? (
+        <div className="no-items">
+          <i className="fas fa-info-circle"></i>
+          <p>No learning resources available for this period yet.</p>
         </div>
-      ))}
+      ) : (
+        items.map((item) => (
+          <div key={item.id} className="roadmap-item-full">
+            <div className="roadmap-item-icon">
+              <i className="fas fa-graduation-cap"></i>
+            </div>
+            <div className="roadmap-item-content">
+              <h4>{item.skill}</h4>
+              <div className="roadmap-meta">
+                <span className="roadmap-duration-full">
+                  <i className="fas fa-clock"></i> {item.duration || "Self-paced"}
+                </span>
+                <span className="roadmap-type">
+                  {getResourceTypeIcon(item.resource_type)}
+                  {item.resource_type || "Resource"}
+                </span>
+              </div>
+              <button 
+                onClick={() => openResourceLink(item.resource_url, item.skill)} 
+                className="roadmap-link-full"
+              >
+                <i className="fas fa-external-link-alt"></i> Start Learning →
+              </button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 
   const tabs = [
-    { id: "shortTerm", label: "📘 Short Term (0-3 months)" },
-    { id: "mediumTerm", label: "📗 Medium Term (3-6 months)" },
-    { id: "longTerm", label: "📕 Long Term (6-12 months)" },
+    { id: "shortTerm", label: "Short Term (0-3 months)", icon: "fas fa-book-open" },
+    { id: "mediumTerm", label: "Medium Term (3-6 months)", icon: "fas fa-chart-line" },
+    { id: "longTerm", label: "Long Term (6-12 months)", icon: "fas fa-flag-checkered" },
   ];
 
   return (
     <div className="roadmap-page">
       <div className="roadmap-header">
-        <h1>Learning Roadmap</h1>
+        <h1><i className="fas fa-map-signs"></i> Learning Roadmap</h1>
         <div className="roadmap-controls">
-          <label>Select Career: </label>
+          <label><i className="fas fa-briefcase"></i> Select Career:</label>
           <select value={selectedCareer} onChange={(e) => setSelectedCareer(e.target.value)}>
             {careers.map((c) => (
               <option key={c.name} value={c.name}>
@@ -157,8 +210,18 @@ function Roadmap() {
         </div>
       </div>
 
-      {loading && <div className="loading">Loading roadmap...</div>}
-      {error && <div className="error-message">⚠️ {error}</div>}
+      {loading && (
+        <div className="loading">
+          <i className="fas fa-spinner fa-pulse"></i> Loading roadmap...
+        </div>
+      )}
+      
+      {error && (
+        <div className="error-message">
+          <i className="fas fa-exclamation-circle"></i> {error}
+        </div>
+      )}
+      
       {!loading && !error && roadmap && (
         <>
           <div className="roadmap-tabs-full">
@@ -168,7 +231,7 @@ function Roadmap() {
                 className={`roadmap-tab-full ${activeTab === tab.id ? "active" : ""}`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                {tab.label}
+                <i className={tab.icon}></i> {tab.label}
               </button>
             ))}
           </div>
